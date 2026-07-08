@@ -1,0 +1,151 @@
+import CryptoKit
+import Darwin
+import Foundation
+
+/// Content-addressed audio storage with the KTD2 crash ordering:
+/// frames stream to a durable temp path with periodic flush during capture;
+/// finalize runs full-fsync(file) → rename to `audio/<sha256>.caf` →
+/// full-fsync(directory) — only after all of which may the event row land.
+/// A crash at any point leaves a recoverable partial or an orphan file,
+/// never an event without its file.
+public struct AudioFileStore: Sendable {
+    public let root: URL
+
+    public var audioDirectory: URL { root.appendingPathComponent("audio", isDirectory: true) }
+    public var tempDirectory: URL { root.appendingPathComponent("tmp", isDirectory: true) }
+
+    public init(root: URL) throws {
+        self.root = root
+        try FileManager.default.createDirectory(at: audioDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+    }
+
+    // MARK: Recording lifecycle
+
+    public final class RecordingHandle {
+        public let tempURL: URL
+        public let startedAtMS: Int64
+        let descriptor: Int32
+        var closed = false
+
+        init(tempURL: URL, startedAtMS: Int64, descriptor: Int32) {
+            self.tempURL = tempURL
+            self.startedAtMS = startedAtMS
+            self.descriptor = descriptor
+        }
+
+        deinit {
+            if !closed { close(descriptor) }
+        }
+    }
+
+    public enum StoreError: Error, Equatable {
+        case cannotOpen(String)
+        case syncFailed(String)
+        case handleClosed
+        case emptyRecording
+    }
+
+    /// Open a durable temp file for streaming frames.
+    public func beginRecording(startedAtMS: Int64 = UUIDv7Generator.currentMS()) throws -> RecordingHandle {
+        let url = tempDirectory.appendingPathComponent("\(UUID().uuidString).partial")
+        let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
+        guard fd >= 0 else { throw StoreError.cannotOpen(url.lastPathComponent) }
+        return RecordingHandle(tempURL: url, startedAtMS: startedAtMS, descriptor: fd)
+    }
+
+    /// Append raw frames. The adapter layer owns the audio container format;
+    /// the core treats bytes.
+    public func append(_ data: Data, to handle: RecordingHandle) throws {
+        guard !handle.closed else { throw StoreError.handleClosed }
+        try data.withUnsafeBytes { buffer in
+            var offset = 0
+            while offset < buffer.count {
+                let written = write(handle.descriptor, buffer.baseAddress!.advanced(by: offset), buffer.count - offset)
+                guard written > 0 else { throw StoreError.syncFailed("write") }
+                offset += written
+            }
+        }
+    }
+
+    /// Periodic in-capture flush (KTD2): a crash mid-recording preserves
+    /// everything up to the last flush.
+    public func flush(_ handle: RecordingHandle) throws {
+        guard !handle.closed else { throw StoreError.handleClosed }
+        try Self.fullSync(descriptor: handle.descriptor)
+    }
+
+    /// The finalize half of the sacred ordering. Returns the content hash
+    /// and final URL; the caller then appends the event row.
+    public func finalize(_ handle: RecordingHandle) throws -> (fileHash: String, url: URL, byteCount: Int64) {
+        guard !handle.closed else { throw StoreError.handleClosed }
+        try Self.fullSync(descriptor: handle.descriptor)
+        handle.closed = true
+        close(handle.descriptor)
+        return try adopt(temporaryFile: handle.tempURL)
+    }
+
+    /// Hash → rename → dir-fsync for an already-durable file. Shared by
+    /// finalize and by the Reconciler's partial-adoption path.
+    public func adopt(temporaryFile url: URL) throws -> (fileHash: String, url: URL, byteCount: Int64) {
+        let data = try Data(contentsOf: url)
+        guard !data.isEmpty else { throw StoreError.emptyRecording }
+        let hash = Data(SHA256.hash(data: data)).hexEncoded
+        let final = fileURL(forHash: hash)
+        if FileManager.default.fileExists(atPath: final.path) {
+            // Duplicate content: the canonical file already exists.
+            try FileManager.default.removeItem(at: url)
+        } else {
+            try FileManager.default.moveItem(at: url, to: final)
+        }
+        try Self.fullSync(directory: audioDirectory)
+        return (hash, final, Int64(data.count))
+    }
+
+    public func discard(_ handle: RecordingHandle) {
+        if !handle.closed {
+            handle.closed = true
+            close(handle.descriptor)
+        }
+        try? FileManager.default.removeItem(at: handle.tempURL)
+    }
+
+    // MARK: Lookup
+
+    public func fileURL(forHash hash: String) -> URL {
+        audioDirectory.appendingPathComponent("\(hash).caf")
+    }
+
+    public func fileExists(hash: String) -> Bool {
+        FileManager.default.fileExists(atPath: fileURL(forHash: hash).path)
+    }
+
+    public func completeFileHashes() throws -> Set<String> {
+        let contents = try FileManager.default.contentsOfDirectory(
+            at: audioDirectory, includingPropertiesForKeys: nil)
+        return Set(contents.filter { $0.pathExtension == "caf" }
+            .map { $0.deletingPathExtension().lastPathComponent })
+    }
+
+    public func partialFiles() throws -> [URL] {
+        try FileManager.default.contentsOfDirectory(
+            at: tempDirectory, includingPropertiesForKeys: [.fileSizeKey])
+    }
+
+    // MARK: fsync discipline
+
+    /// F_FULLFSYNC — plain fsync on Apple platforms does not force the drive
+    /// to flush (fsync(2) man page); the capture path pays for the real thing.
+    public static func fullSync(descriptor: Int32) throws {
+        if fcntl(descriptor, F_FULLFSYNC) != 0 {
+            guard fsync(descriptor) == 0 else { throw StoreError.syncFailed("fsync") }
+        }
+    }
+
+    public static func fullSync(directory: URL) throws {
+        let fd = open(directory.path, O_RDONLY)
+        guard fd >= 0 else { throw StoreError.cannotOpen(directory.lastPathComponent) }
+        defer { close(fd) }
+        try fullSync(descriptor: fd)
+    }
+}

@@ -5,9 +5,9 @@ import GRDB
 /// funnels through this actor so chain heads never race; sync ingest of
 /// foreign events funnels through it too (idempotent by id).
 public actor Ledger {
-    public let store: LedgerStore
+    public nonisolated let store: LedgerStore
     /// This device's identity — the chain local appends extend.
-    public let deviceID: DeviceID
+    public nonisolated let deviceID: DeviceID
 
     private var chainHead: Data
 
