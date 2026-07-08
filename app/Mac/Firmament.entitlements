@@ -13,5 +13,9 @@
 	<array>
 		<string>iCloud.com.davidraphael.firmament</string>
 	</array>
+	<!-- CloudKit push delivery to the Mac; without it CKSyncEngine still
+	     syncs, but only on its own polling/foreground schedule. -->
+	<key>com.apple.developer.aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>
