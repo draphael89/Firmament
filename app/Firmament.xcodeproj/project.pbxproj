@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C00000000000000000000021 /* FirmamentWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000002 /* FirmamentWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B00000000000000000000021 /* FirmamentKit in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000004 /* FirmamentKit */; };
+		C00000000000000000000021 /* FirmamentWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000002 /* FirmamentWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C00000000000000000000022 /* FirmamentKit in Frameworks */ = {isa = PBXBuildFile; productRef = C00000000000000000000004 /* FirmamentKit */; };
 		D00000000000000000000022 /* FirmamentKit in Frameworks */ = {isa = PBXBuildFile; productRef = D00000000000000000000004 /* FirmamentKit */; };
 /* End PBXBuildFile section */
@@ -44,9 +44,21 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		E00000000000000000000001 /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Mac; sourceTree = "<group>"; };
-		E00000000000000000000002 /* iOS */ = {isa = PBXFileSystemSynchronizedRootGroup; path = iOS; sourceTree = "<group>"; };
-		E00000000000000000000003 /* iOSWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; path = iOSWidgets; sourceTree = "<group>"; };
+		E00000000000000000000001 /* Mac */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Mac;
+			sourceTree = "<group>";
+		};
+		E00000000000000000000002 /* iOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		E00000000000000000000003 /* iOSWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = iOSWidgets;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -188,6 +200,7 @@
 			packageReferences = (
 				F00000000000000000000001 /* XCLocalSwiftPackageReference "FirmamentKit" */,
 			);
+			preferredProjectObjectVersion = 77;
 			productRefGroup = A00000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -237,8 +250,8 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = YF9662K2Y4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = YF9662K2Y4;
 				ENABLE_TESTABILITY = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				ONLY_ACTIVE_ARCH = YES;
@@ -253,8 +266,8 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = YF9662K2Y4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = YF9662K2Y4;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 6.0;
 			};
@@ -268,7 +281,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Firmament records voice notes you capture.";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davidraphael.firmament;
@@ -285,7 +301,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Firmament records voice notes you capture.";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davidraphael.firmament;
@@ -301,10 +320,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Firmament records voice notes you capture.";
+				INFOPLIST_FILE = iOS/Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davidraphael.firmament.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -320,10 +343,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Firmament records voice notes you capture.";
+				INFOPLIST_FILE = iOS/Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davidraphael.firmament.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -341,7 +368,11 @@
 				INFOPLIST_FILE = iOSWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Firmament;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davidraphael.firmament.ios.FirmamentWidgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -360,7 +391,11 @@
 				INFOPLIST_FILE = iOSWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Firmament;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davidraphael.firmament.ios.FirmamentWidgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
