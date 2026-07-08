@@ -14,6 +14,7 @@ struct FirmamentMacApp: App {
                 Button(model.recorder.isRecording ? "Stop Capture" : "Start Capture   ⌥Space") {
                     model.toggleCapturePanel()
                 }
+                Button("Sync Now") { model.syncNow() }
                 Divider()
                 if let error = model.lastError {
                     Text(error).font(.caption)

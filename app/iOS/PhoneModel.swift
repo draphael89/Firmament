@@ -42,7 +42,25 @@ final class PhoneModel {
             self?.captureLanded()
         }
 
+        // CloudKit delivers server-change pushes as remote notifications;
+        // CKSyncEngine consumes them internally once the app is registered.
+        UIApplication.shared.registerForRemoteNotifications()
+
         Task { await launchSequence() }
+    }
+
+    /// Foreground nudge: flush anything the Ledger says is unsent and pull
+    /// whatever the other device wrote (SPEC §5.5 — sync is transport, the
+    /// Ledger is truth).
+    func syncNow() {
+        Task {
+            do {
+                try await syncEngine.syncNow()
+                lastError = try await syncEngine.status()
+            } catch {
+                lastError = "sync: \(error.localizedDescription)"
+            }
+        }
     }
 
     private func launchSequence() async {

@@ -3,10 +3,17 @@ import SwiftUI
 
 @main
 struct FirmamentPhoneApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             if let model = PhoneModel.shared {
                 CaptureView(model: model)
+                    .onChange(of: scenePhase) { _, phase in
+                        // Foreground time is when the phone gets to talk to
+                        // CloudKit; flush whatever the Ledger says is unsent.
+                        if phase == .active { model.syncNow() }
+                    }
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")

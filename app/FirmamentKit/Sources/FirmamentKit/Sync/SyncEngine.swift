@@ -1,5 +1,6 @@
 import CloudKit
 import Foundation
+import os
 
 /// The thin CloudKit-facing shell (plan U12/KTD7). Everything with logic —
 /// mapping, gating, conflicts, ingest, state, checkpoints — lives in the
@@ -14,7 +15,11 @@ public actor SyncEngine {
     private let folder: Folder?
 
     private var engine: CKSyncEngine?
+    /// The engine does not retain its delegate — we must, or events never
+    /// arrive and no state is ever persisted (silent no-op sync).
+    private var delegate: Delegate?
     private var zoneCreated = false
+    private let log = Logger(subsystem: "com.davidraphael.firmament", category: "sync")
     /// Integrity alarms from divergent "immutable" records — surfaced to the
     /// app layer; never resolved silently (KTD7).
     public private(set) var integrityAlarms = [UUID]()
@@ -38,10 +43,12 @@ public actor SyncEngine {
     /// never called from unit tests.
     public func start() throws {
         let container = CKContainer(identifier: containerIdentifier)
+        let delegate = Delegate(owner: self)
+        self.delegate = delegate
         var configuration = CKSyncEngine.Configuration(
             database: container.privateCloudDatabase,
             stateSerialization: loadStateSerialization(),
-            delegate: Delegate(owner: self)
+            delegate: delegate
         )
         configuration.automaticallySync = true
         let engine = CKSyncEngine(configuration)
@@ -53,6 +60,23 @@ public actor SyncEngine {
             zoneCreated = true
         }
         try enqueueUnsent()
+        log.info("sync engine started; container \(self.containerIdentifier, privacy: .public)")
+    }
+
+    /// Force a fetch+send cycle (test/diagnostic path — never called from
+    /// inside a delegate callback, which would risk a loop).
+    public func syncNow() async throws {
+        guard let engine else { return }
+        try enqueueUnsent()
+        try await engine.fetchChanges()
+        try await engine.sendChanges()
+    }
+
+    /// Diagnostics for the operator: is the engine live, and what's pending?
+    public func status() throws -> String {
+        let pending = try stateStore.pendingUploads(deviceID: ledger.deviceID, audioStore: audioStore)
+        let started = engine != nil
+        return "engine: \(started ? "started" : "not started"); pending uploads: \(pending.count); alarms: \(integrityAlarms.count)"
     }
 
     /// Re-derive pending uploads from the Ledger (the durability boundary)
@@ -84,13 +108,21 @@ public actor SyncEngine {
             await handleAccountChange(change)
 
         case .fetchedRecordZoneChanges(let changes):
+            log.info("fetched \(changes.modifications.count) record(s)")
             await ingest(modifications: changes.modifications.map(\.record))
 
         case .sentRecordZoneChanges(let sent):
             let savedIDs = sent.savedRecords.compactMap { RecordMapping.eventID(from: $0.recordID) }
             try? stateStore.markSent(savedIDs)
+            log.info("sent \(savedIDs.count) record(s); \(sent.failedRecordSaves.count) failure(s)")
             for failure in sent.failedRecordSaves {
+                log.error("save failed: \(failure.error.localizedDescription, privacy: .public)")
                 await handleFailedSave(failure)
+            }
+
+        case .sentDatabaseChanges(let sent):
+            for failure in sent.failedZoneSaves {
+                log.error("zone save failed: \(failure.error.localizedDescription, privacy: .public)")
             }
 
         default:
@@ -173,21 +205,24 @@ public actor SyncEngine {
     // MARK: Delegate bridge (CKSyncEngineDelegate is a nonisolated protocol)
 
     private final class Delegate: NSObject, CKSyncEngineDelegate {
-        let owner: SyncEngine
+        /// Weak: the actor retains this delegate, so a strong back-reference
+        /// would be a cycle that never releases the engine. Weak reads are
+        /// atomic in the Swift runtime, which is what `unsafe` waives here.
+        nonisolated(unsafe) weak var owner: SyncEngine?
 
         init(owner: SyncEngine) {
             self.owner = owner
         }
 
         func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
-            await owner.handle(event)
+            await owner?.handle(event)
         }
 
         func nextRecordZoneChangeBatch(
             _ context: CKSyncEngine.SendChangesContext,
             syncEngine: CKSyncEngine
         ) async -> CKSyncEngine.RecordZoneChangeBatch? {
-            await owner.nextBatch(context)
+            await owner?.nextBatch(context)
         }
     }
 }

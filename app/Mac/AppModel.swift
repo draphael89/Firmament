@@ -49,7 +49,23 @@ final class AppModel {
             self?.toggleCapturePanel()
         }
 
+        // CloudKit delivers server-change pushes as remote notifications;
+        // CKSyncEngine consumes them internally once the app is registered.
+        NSApplication.shared.registerForRemoteNotifications()
+
         Task { await self.launchSequence() }
+    }
+
+    /// Operator-facing diagnostic + manual round-trip trigger.
+    func syncNow() {
+        Task {
+            do {
+                try await syncEngine.syncNow()
+                lastError = try await syncEngine.status()
+            } catch {
+                lastError = "sync: \(error.localizedDescription)"
+            }
+        }
     }
 
     /// Launch order (plan U4/U6/U7): adopt crash survivors, fold, transcribe
