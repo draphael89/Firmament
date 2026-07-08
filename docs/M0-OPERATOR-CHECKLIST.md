@@ -65,11 +65,11 @@ cost and wrongly passed KTD11.
       (Settings → Action Button → Shortcut). Enable Live Activities for Firmament.
 - [ ] Open the app once after install (microphone permission must already be granted).
 - [ ] **Lock the phone.** Press the Action Button, speak immediately, press again to stop.
-- [ ] Read the numbers out of the phone's own ledger:
-      `swift run --package-path app/FirmamentKit firmament export`, then find the
-      `capture.audio` whose `context.source == "actionButton"`.
-- [ ] Verdict: if the cold sum exceeds **2000 ms**, KTD11 flips to the fallback — a persistent
-      warm audio session (plan Risks) — and the finding goes to a spec conversation.
+- [ ] With the phone attached, run `app/scripts/action-button-latency.py`. It pulls the phone's
+      own ledger, finds the press, and prints the verdict (exit 0 within budget, 1 over, 2 if
+      the press hasn't landed yet).
+- [ ] If it reports **over budget** (cold sum > 2000 ms), KTD11 flips to the fallback — a
+      persistent warm audio session (plan Risks) — and the finding goes to a spec conversation.
 
 ## 3. Mac smoke checklist (U5)
 
