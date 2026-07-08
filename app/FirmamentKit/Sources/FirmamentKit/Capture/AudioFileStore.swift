@@ -102,6 +102,32 @@ public struct AudioFileStore: Sendable {
         return (hash, final, Int64(data.count))
     }
 
+    // MARK: Adapter path (AVAudioFile owns the container writing)
+
+    /// Reserve a temp path for an adapter-managed writer (AVAudioFile on the
+    /// app targets). The Reconciler adopts leftovers here exactly like
+    /// fd-streamed partials; AVAudioFile's CAF keeps its audio-data chunk
+    /// size open until close, so partials stay prefix-recoverable.
+    public func reserveTemporaryPath() -> URL {
+        tempDirectory.appendingPathComponent("\(UUID().uuidString).partial")
+    }
+
+    /// Periodic in-capture durability for adapter-written files: full-fsync
+    /// through a fresh descriptor (fsync flushes the file, not the fd).
+    public func flush(path: URL) throws {
+        let fd = open(path.path, O_RDONLY)
+        guard fd >= 0 else { throw StoreError.cannotOpen(path.lastPathComponent) }
+        defer { close(fd) }
+        try Self.fullSync(descriptor: fd)
+    }
+
+    /// Finalize an adapter-written temp file: full-fsync → hash → rename →
+    /// dir-fsync (the same sacred ordering as `finalize(_:)`).
+    public func finalize(temporaryFile url: URL) throws -> (fileHash: String, url: URL, byteCount: Int64) {
+        try flush(path: url)
+        return try adopt(temporaryFile: url)
+    }
+
     public func discard(_ handle: RecordingHandle) {
         if !handle.closed {
             handle.closed = true

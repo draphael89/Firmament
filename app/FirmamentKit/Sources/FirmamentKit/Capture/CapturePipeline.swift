@@ -45,9 +45,36 @@ public struct CapturePipeline: Sendable {
         interrupted: Bool = false
     ) async throws -> Event {
         let (fileHash, _, _) = try audioStore.finalize(handle)
-        return try await ledger.append(
+        return try await appendAudioEvent(
+            fileHash: fileHash, startedAtMS: handle.startedAtMS, durationMS: durationMS,
+            context: context, tier: tier, interrupted: interrupted)
+    }
+
+    /// Adapter-path completion (U5/U10): AVAudioFile wrote the container at
+    /// a reserved temp path; the store finalizes it through the same sacred
+    /// ordering before the event lands.
+    @discardableResult
+    public func completeAudioCapture(
+        temporaryFile url: URL,
+        startedAtMS: Int64,
+        durationMS: Int64,
+        context: [String: String] = [:],
+        tier: Tier = .personal,
+        interrupted: Bool = false
+    ) async throws -> Event {
+        let (fileHash, _, _) = try audioStore.finalize(temporaryFile: url)
+        return try await appendAudioEvent(
+            fileHash: fileHash, startedAtMS: startedAtMS, durationMS: durationMS,
+            context: context, tier: tier, interrupted: interrupted)
+    }
+
+    private func appendAudioEvent(
+        fileHash: String, startedAtMS: Int64, durationMS: Int64,
+        context: [String: String], tier: Tier, interrupted: Bool
+    ) async throws -> Event {
+        try await ledger.append(
             kind: .captureAudio,
-            occurredAt: handle.startedAtMS,
+            occurredAt: startedAtMS,
             author: .human,
             tier: tier,
             payload: CaptureAudioPayload(
