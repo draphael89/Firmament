@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+
+jobs:
+  package:
+    name: Package tests (fast tier)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin Xcode
+        run: |
+          if [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "Pinned Xcode missing; falling back to default" >&2
+            echo "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" >> "$GITHUB_ENV"
+          fi
+      - name: Swift version
+        run: swift --version
+      - name: Test FirmamentKit + CLI
+        run: swift test --package-path app/FirmamentKit
+      - name: Crash suite (R10 — 50 randomized kill -9s)
+        run: app/scripts/crash-harness.sh 50
+
+  apps:
+    name: App builds (slow tier)
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin Xcode
+        run: |
+          if [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "Pinned Xcode missing; falling back to default" >&2
+            echo "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" >> "$GITHUB_ENV"
+          fi
+      - name: Build macOS app
+        run: |
+          xcodebuild build -project app/Firmament.xcodeproj -scheme Firmament \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet
+      - name: Build iOS app + widget extension
+        run: |
+          xcodebuild build -project app/Firmament.xcodeproj -scheme "Firmament iOS" \
+            -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO -quiet
