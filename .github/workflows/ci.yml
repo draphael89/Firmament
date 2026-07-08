@@ -24,7 +24,8 @@ jobs:
         run: swift --version
       - name: Test FirmamentKit + CLI
         run: swift test --package-path app/FirmamentKit
-      # Crash harness (U11) joins this tier once app/scripts/crash-harness.sh lands.
+      - name: Crash suite (R10 — 50 randomized kill -9s)
+        run: app/scripts/crash-harness.sh 50
 
   apps:
     name: App builds (slow tier)
