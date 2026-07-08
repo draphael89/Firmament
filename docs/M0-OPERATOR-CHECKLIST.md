@@ -14,7 +14,7 @@ the 50-kill crash suite passes in CI.
 | # | Item | Status |
 |---|---|---|
 | 1 | Apple plumbing | ✅ team YF9662K2Y4, container, App Group, both devices signed and installed |
-| 2 | Action Button latency (locked phone) | ⬜ open — the KTD11 gate |
+| 2 | Action Button latency (locked phone) | ◐ path proven — one warm press captured ("Is this working? 123?"); a **cold** press on the current build still needed for the KTD11 number |
 | 3 | Mac panel + hotkey | ✅ ⌥Space → panel → capture → real transcription → Vault |
 | 4 | Two-device sync round-trip (airplane mode) | ✅ offline capture + transcript synced; both chains verify |
 | 5 | One week of daily use | ⬜ in progress |
@@ -35,9 +35,14 @@ the MainActor), and reachable on the Mac too, where ⌥Space is live during a la
 first-run WhisperKit model download. `AudioFileStore` now tracks the temp paths this process is
 writing, and only unowned partials are adoptable.
 
-Open signal for item 2: transcripts of app-UI captures have begun mid-phrase, and one 11-second
-utterance recorded as 9.8 s. That is suggestive of start-of-capture clipping but does not
-decide KTD11 — the Action Button path is separate and still unmeasured.
+Item 2 progress: the Action Button path fired for the first time — a real capture with
+`source=actionButton` and the transcript "Is this working? 123?". But it was a **warm** press
+(the app was already resident: `coldLaunch=false`, engine start 312 ms), and it ran on the
+build just before the adoption-race fix. So the path is proven end-to-end, but the number that
+gates KTD11 — cold press-to-first-sample from a locked, non-resident app — has not been taken.
+Repeat the press cold (lock the phone, wait for the app to be evicted, or reboot) on the
+current build; `app/scripts/action-button-latency.py` will read `coldLaunch=true` and report the
+sum against the 2000 ms budget.
 
 ## 1. Apple plumbing (one-time)
 
