@@ -16,13 +16,15 @@ node_modules/
 dist/
 .cache/
 
-# Xcode / Swift (the app/ target lands here later)
+# Xcode / Swift
 build/
+.build/
 DerivedData/
 *.xcuserstate
+xcuserdata/
 *.xcworkspace/xcuserdata/
 .swiftpm/
-Package.resolved
+# Package.resolved is committed on purpose — dependency pins are part of the plan (KTD5)
 
 # Secrets — never commit the waitlist endpoint or keys
 .env
