@@ -1,4 +1,4 @@
-# FIRMAMENT — Build Specification v1.0
+# FIRMAMENT — Build Specification v1.1
 
 **A private brain for one mind. Voice-first. Agent-legible. Mac-native.**
 
@@ -6,8 +6,8 @@ Codename: Firmament — the fixed vault of sky against which everything else mov
 at will; the architecture doesn't care.
 
 > This document is the constitution of the build. Amendments are ratifications: date
-> them, cite the pressure that forced them, and keep the count low. Pending amendments
-> from the first review pass are collected at the end under **Review notes**.
+> them, cite the pressure that forced them, and keep the count low. Ratified amendments
+> are recorded in the **Changelog** at the end.
 
 ---
 
@@ -236,9 +236,10 @@ struct Event: Codable, Sendable, Identifiable {
     let author: Author           // .human | .dream | .agent(GrantID) | .system
     let tier: Tier               // .open | .personal | .sanctum   (see 5.4)
     let parentID: UUID?          // causal link (e.g., transcript → its recording)
-    let payload: Payload         // kind-specific, canonical JSON
+    let payload: Payload         // kind-specific, canonical JSON (bytes stored verbatim)
+    let payloadHash: SHA256      // digest of the canonical payload bytes (A7)
     let prevHash: SHA256?        // hash of previous event on THIS device's chain
-    let hash: SHA256             // SHA256(canonical(all fields above))
+    let hash: SHA256             // SHA256(canonical envelope, payload represented by payloadHash)
 }
 ```
 
@@ -293,14 +294,16 @@ cache tuned once and forgotten.
 CREATE TABLE event (
   id BLOB PRIMARY KEY,            -- UUIDv7 bytes; primary index IS the timeline
   kind TEXT NOT NULL,
-  occurred_at REAL NOT NULL, recorded_at REAL NOT NULL,
+  occurred_at INTEGER NOT NULL, recorded_at INTEGER NOT NULL,   -- epoch milliseconds (A7)
   device TEXT NOT NULL, author TEXT NOT NULL, tier INTEGER NOT NULL,
-  parent_id BLOB, payload TEXT NOT NULL,     -- canonical JSON
+  parent_id BLOB, payload BLOB NOT NULL,     -- canonical JSON bytes, verbatim (A7)
+  payload_hash BLOB NOT NULL,
   prev_hash BLOB, hash BLOB NOT NULL
 ) STRICT;
 CREATE INDEX event_kind_time ON event(kind, occurred_at);
 CREATE INDEX event_parent ON event(parent_id);
-CREATE VIRTUAL TABLE event_fts USING fts5(payload_text, content='');  -- BM25 leg
+CREATE VIRTUAL TABLE event_fts USING fts5(payload_text, content='');  -- BM25 leg (contentless;
+                                          -- populated in the append transaction, A7)
 ```
 
 ### 5.4 Sensitivity tiers
@@ -424,6 +427,12 @@ versioned, persisted Lens folded by the layout engine (11.3). Treating position 
 derived-but-durable is what makes spatial memory possible: the sky is stable because its
 state is owned, not recomputed on view load.
 
+The fold is deterministic (v1.1, A1): every stochastic input is seeded from the Ledger's
+genesis hash, the simulation runs a fixed-step integrator in deterministic iteration order,
+and the UMAP seed+version are pinned in the Lens version. Rebuilding the brain reproduces
+the same sky byte-for-byte, and the stability contract (11.3) is CI-testable instead of
+vibes.
+
 ---
 
 ## 7. The intelligence stack
@@ -480,7 +489,8 @@ note; extraction lands silently within 10 s.
 
 ## 8. The Dream Cycle
 
-Runs when the Mac is plugged in, idle, and past 02:00. Every phase reads Lenses, thinks
+Runs when the Mac is plugged in, idle, and past 02:00; a scheduled power-management wake
+(v1.1, A6) ensures the Dream window survives a closed lid. Every phase reads Lenses, thinks
 with dreamer, and writes only events — the entire night is a diffable set of appends,
 reviewable each morning, revertible by tombstone. Phases, in fixed order, each independently
 skippable and resumable:
@@ -499,10 +509,15 @@ skippable and resumable:
    clusters (label propagation over the current graph); refresh the periphery; detect
    recurring patterns and, when a pattern rises to identity, draft a constitution amendment
    proposal with the evidence trail.
-5. **COMPOSE** — the Morning Sky. Write the daily digest: what changed in the sky, open
-   proposals awaiting ratification, contradictions worth knowing, yesterday's agent activity
-   and egress in one paragraph, and one provocation — a question to sit with on today's
-   walk. Written to be read in 90 seconds.
+5. **COMPOSE** — Dawn (v1.1, A2). Write the nightly script, not an essay: a structured
+   `distillation(type: .dawn)` whose payload is an ordered list of scenes referencing star,
+   edge, and proposal IDs — stars born with a shimmer, superseded edges closing, one proposal
+   glowing toward the Chamber — each scene carrying caption text, plus yesterday's agent
+   activity and egress in one paragraph, and one provocation — a question to sit with on
+   today's walk. The Atlas plays the script as a ~20-second replay at first open (the
+   time-scrubber mechanic pointed at a 24-hour window); the Ledger space renders the same
+   script as readable text, which is the whole morning surface until the Atlas ships (M4).
+   Read or watched in 90 seconds.
 6. **AUDIT** — self-check. Access-pattern anomalies per grant; Lens/Ledger consistency
    counters; model+prompt version report; append `sync.checkpoint`.
 
@@ -525,7 +540,7 @@ Gate lets agents bring that context instead — better boundary).
 
 - **iPhone:** Action Button → recording starts before the app finishes launching (audio
   session warm-up in an App Intent; missing the first two seconds of a thought is a
-  product-killing bug). Lock-screen widget and watch complication as alternates. One
+  product-killing bug). Lock-screen widget as alternate (watch capture: backlog, v1.1). One
   glance-able screen: waveform, elapsed, a tier toggle (default `.personal`; long-press =
   Sanctum, shown in deep-indigo), stop. Live partial transcript optional and off by default.
 - **Mac:** global hotkey (⌥Space) → a small floating glass panel, same anatomy. Menu-bar
@@ -533,6 +548,9 @@ Gate lets agents bring that context instead — better boundary).
 - Recording writes `capture.audio` immediately on stop (file first, envelope second, both
   fsynced) — transcription is always recoverable-async, never in the save path. Airplane
   mode is indistinguishable from online at capture time.
+- **The echo** (v1.1, A5): two seconds after a capture, the phone ripples which stars the
+  thought touched — "filed under Reflections · SKAN" — one tap to correct. Trust is built
+  per-capture, not per-month.
 
 ### 9.3 ASR: WhisperKit, fed by the Graph
 
@@ -568,6 +586,10 @@ Each client authenticates with a bearer key minted at grant creation (key hash l
 grant event; plaintext lives once in the operator's clipboard). A connecting agent with no
 grant gets public resolution automatically: useful immediately, intimate never
 (default-deny with a welcome mat).
+
+Every grant carries a per-grant rate limit enforced at the Gate (v1.1, A6): a looping agent
+cannot mint a million `agent.access` events; excess calls receive an actionable backoff
+error.
 
 ### 10.2 Tools and resources
 
@@ -632,14 +654,16 @@ Four spaces, one window, ⌘1–4, all rendered within the sky where possible:
 
 1. **Sky** — the Atlas proper (default).
 2. **Ledger** — a reverse-chronological reading surface: today's captures, transcripts with
-   audio scrubbing, the digest. This is where mornings happen.
+   audio scrubbing, the Dawn script as readable text. Mornings open in the Sky with the Dawn
+   replay (v1.1, A2); this is where they continue.
 3. **Chamber** — the Constitution: core articles (serif, numbered, dated), pending proposals
    with evidence trails, the ratification ritual (⏎ adopt / ⌫ reject / e edit-then-adopt).
 4. **Gatehouse** — grants, per-agent activity sparklines, the egress ledger, Departure Card
    history.
 
 Global: ⌥Space capture from anywhere in the OS; ⌘K omnisearch; a single voice orb (hold ⌥
-and speak to ask the sky — answers stream from worker with sources that light up as trails).
+and speak to ask the sky — answers stream from worker). Both render their results through
+Summon (11.5); the former list/constellation duality is dissolved (v1.1, A3).
 
 ### 11.3 The layout engine — stability as the prime directive
 
@@ -677,15 +701,29 @@ rather than worse.
 - SwiftUI owns everything that isn't the sky. The boundary is clean: SwiftUI →
   AtlasCommands in, AtlasSelection events out.
 
-### 11.5 Light trails
+### 11.5 Summon — retrieval rendered spatially
 
-When any grant reads through the Gate, the `agent.access` event drives a trail: a faint
-comet-line sweeping from the Gatehouse point at the sky's edge through each touched star,
-persisting ~90 s in live view. When you ask the sky, your own retrieval traces in warm white
-— the same physics, honestly applied to both surfaces. This is the trust surface for the
-entire soul-sharing thesis; do not cut it under schedule pressure — cut nebulae first.
+One primitive, three former features (v1.1, A3): any retrieval summons a constellation —
+the relevant stars brighten and drift forward, the answer anchors to them, the trail fades.
+⌘K omnisearch results, the voice orb's sources, and agent reads through the Gate all render
+through this one Metal path. A grant's read drives its trail from the `agent.access` event:
+a faint comet-line sweeping from the Gatehouse point at the sky's edge through each touched
+star, persisting ~90 s in live view; the Gatehouse replays any historical access as trails
+on demand. When you ask the sky, your own retrieval traces in warm white — the same physics,
+honestly applied to both surfaces, which is the whole thesis made visible. This is the trust
+surface for the soul-sharing bet; do not cut it under schedule pressure — cut the density
+glow first.
 
-### 11.6 App architecture (Swift)
+### 11.6 Weave — where works get made
+
+The library grows its own books (v1.1, A4). Lasso a constellation → **Weave** → dreamer (or
+a ceremonial frontier call through the escalation gate, 7.2) drafts an essay, rap, or thesis
+from exactly those evidence events. The result lands as an ordinary `capture.text` plus a
+`work` entity: a violet star wired by `references` edges into everything that made it. Zero
+new event kinds, zero new predicates; the Departure Card ceremony applies unchanged when the
+draft goes to frontier.
+
+### 11.7 App architecture (Swift)
 
 - Swift 6.2, strict concurrency, zero third-party UI dependencies. Vanilla @Observable
   state — no TCA.
@@ -702,12 +740,17 @@ entire soul-sharing thesis; do not cut it under schedule pressure — cut nebula
 
 ## 12. The iPhone satellite
 
-One screen deep, three capabilities: **capture** (9.2 — Action Button latency is the whole
-game), **recall** (synced Index + pocket model for offline Q&A; when the Mac is reachable
-over Tailscale, hard questions stream from the Mac's worker through the Gate), and the
-**Morning Sky** (digest as a widget + a read-only mini-atlas: static rendered sky image from
-the Mac, pannable, tappable to recall — no live simulation on the phone in v1). No Chamber,
-no Gatehouse, no settings beyond tier defaults — those are Mac ceremonies.
+One screen deep, four capabilities (v1.1, A5): **capture** (9.2 — Action Button latency is
+the whole game), **recall** (synced Index + pocket model for offline Q&A; when the Mac is
+reachable over Tailscale, hard questions stream from the Mac's worker through the Gate),
+**Converse** — hold-to-talk with spoken replies via TTSKit (already inside the Argmax
+package), screen-off, barge-in; the same component hosts the Mac voice orb — and the
+**Morning Sky** (Dawn captions as a widget + a read-only mini-atlas: static rendered sky
+image from the Mac, pannable, tappable to recall — no live simulation on the phone in v1).
+When motion says a walk has begun and today's provocation is unread, one quiet notification
+— "the sky has a question" — opens Converse seeded with it. Night thinks → morning asks →
+walk answers → night thinks. No Chamber, no Gatehouse, no settings beyond tier defaults —
+those are Mac ceremonies.
 
 ## 13. Security model (condensed)
 
@@ -740,33 +783,37 @@ Each milestone ends in something used daily, with acceptance criteria that are c
   that open the source audio at the right timestamp; retrieval identical between app, CLI,
   and Gate.
 - **M2 — The Dream & the Constitution (3 wks).** Worker extraction pipeline; Graph Lens with
-  bi-temporal edges; Dream phases SWEEP/WEAVE/JUDGE/DISTILL/COMPOSE; Chamber with ratification
-  ritual; periphery; ASR lexicon loop live. *Accept:* seven consecutive mornings of digests
-  the operator actually reads; first amendment proposal cites real evidence; a planted
-  contradiction is caught within two nights.
+  bi-temporal edges; Dream phases SWEEP/WEAVE/JUDGE/DISTILL/COMPOSE (COMPOSE emits the Dawn
+  script from day one, rendered as text in the Ledger space until M4); Chamber with
+  ratification ritual; periphery; ASR lexicon loop live. *Accept:* seven consecutive mornings
+  of Dawn captions the operator actually reads; first amendment proposal cites real evidence;
+  a planted contradiction is caught within two nights.
 - **M3 — The Gate (2 wks).** MCP server (stdio + HTTP), grants + projections, all seven tools
   + two resources, agent.access trail data, Claude Code connected under a working grant, phone
   tunnel escalation. *Accept:* a Claude Code session with zero Firmament-specific prompting
   demonstrably adopts constitution stances; Sanctum red-team suite (20 adversarial queries)
   leaks nothing; every access visible in Gatehouse.
-- **M4 — The Atlas (4 wks).** Metal sky, layout engine + Positions Lens, LOD zoom, focus
-  edges, fixed stars, light trails, time scrubber, omnisearch-as-constellation. *Accept:*
-  120 fps at 10k stars (Instruments-verified, no frame >12 ms during scrub); layout stability
-  contract holds across 14 nightly cycles; the operator voluntarily shows someone the time
-  scrubber.
-- **M5 — Polish & the Ritual (2 wks).** Morning Sky widget, watch capture, Departure Cards
-  everywhere, nebulae, sound design, export/rebuild drills, panic switch drill. *Accept:* full
-  Lens rebuild from a 6-month Ledger in <10 min; restore-from-iCloud onto a clean Mac
-  reproduces the sky (positions included); one week where the tool is used without touching
-  Xcode.
+- **M4 — The Atlas (4 wks).** Metal sky, deterministic layout engine + Positions Lens, LOD
+  zoom, focus edges, fixed stars, Summon (one retrieval-rendering path serving omnisearch,
+  the voice orb, and agent trails), time scrubber, the Dawn replay, Weave. *Accept:* 120 fps
+  at 10k stars (Instruments-verified, no frame >12 ms during scrub); layout stability
+  contract holds across 14 nightly cycles and a Ledger rebuild reproduces identical
+  positions; the operator voluntarily shows someone the time scrubber.
+- **M5 — Polish & the Ritual (3 wks).** Morning Sky widget, Converse (hold-to-talk + TTS,
+  screen-off, barge-in), the echo, the provocation notification, Departure Cards everywhere,
+  cluster density glow, sound design, export/rebuild drills, panic switch drill. *Accept:*
+  full Lens rebuild from a 6-month Ledger in <10 min; restore-from-iCloud onto a clean Mac
+  reproduces the sky (positions included); a full walk conversation round-trip with the
+  screen off; one week where the tool is used without touching Xcode.
 
 Deliberately unscheduled: Vault write-back, ambient capture, image intelligence beyond OCR,
-multi-operator anything.
+watch capture (v1.1), multi-operator anything.
 
 ## 15. Risk register — the six that can kill it
 
 1. **Layout instability breaks spatial memory.** Mitigation: anchors + hysteresis + drift
-   contract as an automated nightly metric from M4 week 1.
+   contract as an automated nightly metric from M4 week 1; determinism (A1) makes the
+   contract CI-testable — replay the Ledger, get the same sky.
 2. **Dream quality is untrusted → mornings get skipped → compounding dies.** Mitigation:
    everything cited, everything diffable, proposals-not-actions for anything identity-adjacent;
    track ratification rate — if <50% for two weeks, dreamer prompts (or model) get revisited.
@@ -777,14 +824,15 @@ multi-operator anything.
 5. **Sync corruption or split-brain.** Mitigation: immutability makes merge = union; chains +
    daily checkpoints make corruption loud; the phone never materializes; export-to-JSON drill.
 6. **Metal scope-sink.** Mitigation: the Atlas is M4, after the system is daily-useful in
-   text; a hard "sky budget" of 4 weeks; cut order pre-agreed (nebulae → scrub-ghosts → bloom
-   → never the trails, never the stability).
+   text; a hard "sky budget" of 4 weeks; cut order pre-agreed (density glow → scrub-ghosts →
+   bloom → never Summon, never the stability).
 
 ## 16. Testing strategy
 
 - **Determinism first:** golden-Ledger replay tests — a checked-in synthetic Ledger (~5k
   events incl. adversarial orderings, tombstones, tier mixes) folds to byte-stable Lens
-  fixtures per view version.
+  fixtures per view version. The Positions Lens is included (A1): seeded UMAP + fixed-step
+  simulation must reproduce identical coordinates on every rebuild.
 - **Property tests** (swift-testing): append-crash atomicity, sync merge = union under
   arbitrary interleavings, tier invariants ("no Sanctum-derived token in any
   Projection/periphery/escalation payload" — enforced by a scanner test with an
@@ -827,8 +875,8 @@ assumption, not a linked dependency.
 {"kind":"assertion","author":"dream","payload":{"op":"edge.invalidate",
  "edge":"edg:multiplier-valid","tInvalid":"2026-07-07","by":"evt:transcript↑"}}
 
-// 07:05 next morning — the digest that mentions it
-{"kind":"distillation","payload":{"type":"digest","content":"The Alberta attribution
+// 07:05 next morning — the Dawn caption that mentions it
+{"kind":"distillation","payload":{"type":"dawn","content":"The Alberta attribution
  constellation brightened again — the multiplier belief you closed in June resurfaced
  with new evidence…","evidence":[…]}}
 ```
@@ -836,52 +884,6 @@ assumption, not a linked dependency.
 One breath into the phone; by morning it is a star with a history.
 
 ---
-
-## Review notes — pending amendments (toward v1.1)
-
-Held to the standard of a PR review. The architecture survives scrutiny — substrate, tiers,
-grants, and the dream loop are sound. Found one genuine P0, one structural redundancy, one
-missing organ, and a set of magic that's cheaper than it looks. Every elevation is paid for
-by a deletion or a reuse. **Not yet ratified into the spec above; recorded here as the
-pressure that will force v1.1.**
-
-- **P0 — the spec contradicts itself.** The Positions Lens violates Tenet 2: force
-  simulations and UMAP are nondeterministic, so the sky isn't rebuildable byte-for-byte from
-  the Ledger. Fix: seed everything from the Ledger's genesis hash, fixed-step integrator,
-  deterministic iteration order, pinned UMAP seed+version. Now "rebuild the brain" reproduces
-  the same sky — and the layout-stability contract becomes CI-testable instead of vibes.
-- **P1 — Dawn: the digest is a redundancy.** COMPOSE writes an essay you read in the Ledger
-  space, but the product's soul is the sky. Unify them: opening the app at dawn plays last
-  night as a ~20-second replay in the sky itself — stars born with a shimmer, superseded edges
-  closing, one proposal glowing toward the Chamber — with the digest text as captions. COMPOSE's
-  output becomes a script (structured events referencing star IDs), not prose. More magical,
-  less build: it's the time-scrubber mechanic pointed at a 24-hour window.
-- **P1 — Summon: three features are one mechanism.** Omnisearch's results-constellation, the
-  voice orb's source-lighting, and agent light-trails are all "retrieval rendered spatially."
-  Collapse them into one primitive: any retrieval, yours or an agent's, summons a constellation
-  — relevant stars brighten and drift forward, the answer anchors to them, the trail fades. One
-  Metal path, three features, and the human and agent surfaces are now visibly symmetrical.
-- **P1 — Weave: the opus was missing.** The spec builds the library but no bench where the
-  magnum opus gets made. Not an editor — a gesture: lasso a constellation → Weave → dreamer (or
-  a ceremonial frontier call) drafts an essay/rap/thesis from exactly those evidence events →
-  the result lands as an ordinary capture plus a work entity: a violet star wired by references
-  edges into everything that made it. Zero new event kinds, zero new predicates, reuses the
-  escalation gate.
-- **P2 — three closures of the loop, nearly free.** *The echo:* two seconds after a capture,
-  the phone ripples which stars the thought touched — one tap to correct; trust built
-  per-capture, not per-month. *Converse:* promote walk-mode to first-class — hold-to-talk,
-  spoken replies via TTSKit (already inside the Argmax package), screen-off, barge-in. *The
-  provocation walks with you:* when motion says a walk has begun and today's provocation is
-  unread, one quiet notification — "the sky has a question." Night thinks → morning asks → walk
-  answers → night thinks.
-- **Hardening one-liners:** per-grant rate limiting at the Gate (a looping agent shouldn't mint
-  a million `agent.access` events); pmset-scheduled wake so the Dream Cycle survives a closed
-  lid.
-
-Paying for it: nebula textures drop to a simple density glow (first on the cut list); the
-omnisearch list/constellation duality dissolves into Summon; watch capture moves to backlog.
-Net schedule impact: about one honest week, mostly Converse's TTS integration — Dawn, Summon,
-and Weave are recombinations of things M4 already pays for.
 
 ### 17.3 Sources consulted
 
@@ -891,5 +893,53 @@ DeepWiki architecture pages · Apple-silicon local-model landscape 2026 (MLX vs 
 Ollama MLX backend notes) · WhisperKit/Argmax docs & SpeechAnalyzer comparisons ·
 modelcontextprotocol/swift-sdk.
 
-*End of v1.0. Amendments to this spec are ratifications: date them, cite the pressure that
+---
+
+## Changelog
+
+### v1.1 — ratified 2026-07-08
+
+Pressure: the first full review pass, held to PR standard, found one Tenet-2 contradiction,
+one structural redundancy, one missing organ, and three near-free loop closures. Every
+elevation is paid for by a deletion or a reuse.
+
+- **A1 — Deterministic sky (was P0).** The Positions Lens violated Tenet 2: force simulation
+  and UMAP were nondeterministic, so the sky was not rebuildable byte-for-byte from the
+  Ledger. Ratified: seed all stochastic inputs from the Ledger's genesis hash, fixed-step
+  integrator, deterministic iteration order, pinned UMAP seed+version. Touches 6.6, 14 (M4),
+  15.1, 16.
+- **A2 — Dawn.** The prose digest competed with the sky for the morning. COMPOSE now emits a
+  structured replay script with captions; the Atlas plays last night in ~20 seconds at first
+  open; the Ledger space renders the captions as text (and is the whole morning surface until
+  M4). Touches 8 (COMPOSE), 11.2, 12, 14 (M2, M4).
+- **A3 — Summon.** Omnisearch's results-constellation, the voice orb's source-lighting, and
+  agent light-trails were one mechanism written three times. Collapsed into one
+  retrieval-rendered-spatially primitive; the list/constellation duality is dissolved.
+  Touches 11.2, 11.5, 14 (M4).
+- **A4 — Weave.** The spec built the library but no bench where works get made. Lasso a
+  constellation → draft from exactly those evidence events → ordinary capture plus a `work`
+  entity wired by `references` edges. Zero new event kinds, zero new predicates. New 11.6;
+  touches 14 (M4).
+- **A5 — Loop closures.** The echo (per-capture filing ripple, one-tap correction), Converse
+  (hold-to-talk walk mode with TTS, screen-off, barge-in, hosting the Mac orb), and the
+  provocation notification at walk start. Touches 9.2, 12, 14 (M5).
+- **A6 — Hardening.** Per-grant rate limiting at the Gate; scheduled power-management wake so
+  the Dream Cycle survives a closed lid. Touches 8, 10.1.
+
+Paid by: nebula textures drop to a cluster density glow; the omnisearch list/constellation
+duality dissolves into Summon; watch capture moves to the backlog; M5 grows from two weeks to
+three (mostly Converse's TTS integration).
+
+- **A7 — Hash preimage and storage types (2026-07-08).** Pressure: M0 planning research on
+  canonicalization, crypto-shredding, and cross-device verification. The event hash covers the
+  canonical envelope with the payload represented by its SHA-256 digest (`payloadHash`, a new
+  envelope field) — shredding a payload removes the bytes while the envelope chain still
+  verifies, honoring §5.2's tombstone note and §13's panic switch. Canonical payload bytes are
+  stored verbatim (BLOB) and verification re-hashes stored bytes, never a re-serialization.
+  Timestamps are integer epoch-milliseconds. The FTS5 table is contentless (`content=''`),
+  keyed by event rowid and populated inside the append transaction with extracted human text
+  (a payload BLOB cannot back an external-content table). No product behavior changes.
+  Touches 5.1, 5.3.
+
+*End of v1.1. Amendments to this spec are ratifications: date them, cite the pressure that
 forced them, and keep the count low.*
