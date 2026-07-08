@@ -10,11 +10,15 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
     ],
     targets: [
         .target(
             name: "FirmamentKit",
-            dependencies: [.product(name: "GRDB", package: "GRDB.swift")],
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "WhisperKit", package: "argmax-oss-swift"),
+            ],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .executableTarget(
