@@ -91,26 +91,45 @@ final class PhoneModel {
     /// The Action Button entry (KTD11): toggles capture; the Live Activity
     /// is mandatory while an AudioRecordingIntent records and doubles as the
     /// status surface.
+    ///
+    /// Order is load-bearing. `AudioRecordingIntent` grants background
+    /// recording only *while* a Live Activity runs, and the audio session
+    /// checks for that grant when it goes active. Raise the activity first or
+    /// a backgrounded press dies with "Session activation failed" — which is
+    /// invisible in the foreground, where the app may record regardless.
     func toggleCapture(fromIntent: Bool = false, coldLaunch: Bool = false) {
         if recorder.isRecording {
             recorder.stop()
             endLiveActivity()
-        } else {
-            recorder.launchedFromIntent = fromIntent
-            recorder.coldLaunch = coldLaunch
-            recorder.start()
-            if case .recording(let startedAtMS) = recorder.status {
-                startLiveActivity(startedAtMS: startedAtMS)
-            }
+            return
+        }
+        let startedAtMS = UUIDv7Generator.currentMS()
+        startLiveActivity(startedAtMS: startedAtMS)
+        recorder.launchedFromIntent = fromIntent
+        recorder.coldLaunch = coldLaunch
+        recorder.start(nowMS: startedAtMS)
+        if !recorder.isRecording {
+            endLiveActivity()  // the mic never opened; do not leave a ghost activity
         }
     }
 
     private func startLiveActivity(startedAtMS: Int64) {
-        activity = try? Activity.request(
-            attributes: RecordingActivityAttributes(),
-            content: .init(
-                state: RecordingActivityAttributes.ContentState(startedAtMS: startedAtMS),
-                staleDate: nil))
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            // Not cosmetic: without a Live Activity the Action Button cannot
+            // record while the app is closed.
+            lastError = "Live Activities are off for Firmament — the Action Button can't record in the background."
+            return
+        }
+        do {
+            activity = try Activity.request(
+                attributes: RecordingActivityAttributes(),
+                content: .init(
+                    state: RecordingActivityAttributes.ContentState(startedAtMS: startedAtMS),
+                    staleDate: nil))
+        } catch {
+            activity = nil
+            lastError = "Live Activity failed: \(error.localizedDescription)"
+        }
     }
 
     private func endLiveActivity() {

@@ -53,8 +53,10 @@ final class PhoneRecorder {
         }
     }
 
-    func start() {
-        let nowMS = UUIDv7Generator.currentMS()
+    /// `nowMS` is injected so the caller can stamp the capture's start *before*
+    /// it raises the Live Activity, which must exist before the audio session
+    /// goes active on the Action Button path.
+    func start(nowMS: Int64 = UUIDv7Generator.currentMS()) {
         guard case .beginCapture(let startedAtMS) = machine.start(nowMS: nowMS) else { return }
         do {
             let session = AVAudioSession.sharedInstance()
@@ -64,7 +66,11 @@ final class PhoneRecorder {
             status = .recording(startedAtMS: startedAtMS)
         } catch {
             _ = machine.stop()
-            status = .failed("microphone unavailable: \(error.localizedDescription)")
+            // The domain/code separates "no background grant" (AVAudioSession
+            // !int / !rec) from a permission or hardware failure — the message
+            // alone reads the same for all three.
+            let ns = error as NSError
+            status = .failed("microphone unavailable: \(error.localizedDescription) [\(ns.domain) \(ns.code)]")
         }
     }
 
