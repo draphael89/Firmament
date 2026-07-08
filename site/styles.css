@@ -190,6 +190,11 @@ a:hover { color: var(--accent-hi); }
     rgba(6, 7, 12, 0.5) 0%, rgba(6, 7, 12, 0.3) 38%, rgba(6, 7, 12, 0.1) 60%, transparent 80%);
   pointer-events: none;
 }
+/* centered sections get a symmetric glow — no left-biased seam */
+.request .shell::before, .shell--center::before {
+  background: radial-gradient(ellipse 92% 88% at 50% 50%,
+    rgba(6, 7, 12, 0.46) 0%, rgba(6, 7, 12, 0.26) 40%, rgba(6, 7, 12, 0.08) 62%, transparent 82%);
+}
 
 section { padding-block: var(--section-y); position: relative; }
 section + section .shell::before { }
@@ -238,12 +243,13 @@ h2 em { font-style: italic; }
 .nav__links a { font: 500 13px/1 var(--ui-font); color: var(--muted); letter-spacing: 0.01em; }
 .nav__links a:hover { color: var(--ui); }
 .nav__cta {
-  font: 600 13px/1 var(--ui-font); color: var(--ui) !important;
-  border: 1px solid var(--line-3); border-radius: 5px; padding: 9px 15px;
+  font: 600 13px/1 var(--ui-font); color: var(--accent-hi) !important;
+  border: 1px solid rgba(169, 180, 255, 0.3); border-radius: 5px; padding: 9px 15px;
   min-height: 40px; display: inline-flex; align-items: center;
+  background: rgba(169, 180, 255, 0.07);
   transition: border-color var(--d-base), background var(--d-base), color var(--d-base);
 }
-.nav__cta:hover { border-color: var(--accent); background: rgba(169, 180, 255, 0.06); color: var(--accent-hi) !important; }
+.nav__cta:hover { border-color: var(--accent); background: rgba(169, 180, 255, 0.13); color: #fff !important; }
 @media (max-width: 760px) { .nav__links a:not(.nav__cta) { display: none; } }
 @media (max-width: 460px) {
   .nav { padding-inline: 16px; }
@@ -349,7 +355,7 @@ h2 em { font-style: italic; }
 .term__bar .dot.a { background: var(--amber); } .term__bar .dot.b { background: var(--accent); } .term__bar .dot.c { background: var(--cyan); }
 .term__bar .name { margin-left: auto; font: 500 10px/1 var(--mono); letter-spacing: 0.06em; color: var(--muted); }
 .term__body { padding: 18px 18px; font: 400 12.5px/1.75 var(--mono); font-feature-settings: 'tnum' 1; min-height: 240px; }
-.term__line { opacity: 0.14; transition: opacity 400ms var(--ease-out); margin-bottom: 4px; color: var(--body); }
+.term__line { opacity: 0.22; transition: opacity 400ms var(--ease-out); margin-bottom: 4px; color: var(--body); }
 .term__line.is-on { opacity: 1; }
 .term__line .k { color: var(--accent); } .term__line .s { color: var(--cream); }
 .term__line .kind { color: var(--amber-bloom); } .term__line .inv { color: var(--violet); }
