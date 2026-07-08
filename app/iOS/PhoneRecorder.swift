@@ -1,0 +1,154 @@
+#if os(iOS)
+import AVFoundation
+import FirmamentKit
+import Observation
+
+/// Thin AVAudioSession/engine adapter over the platform-free recorder core.
+/// Interruptions (phone call, route loss) finalize the partial through the
+/// same path — saved, never lost (U4).
+@MainActor
+@Observable
+final class PhoneRecorder {
+    enum Status: Equatable {
+        case idle
+        case recording(startedAtMS: Int64)
+        case failed(String)
+    }
+
+    private(set) var status: Status = .idle
+    private(set) var levels: [Float] = []
+    var isRecording: Bool {
+        if case .recording = status { return true }
+        return false
+    }
+
+    private var machine = RecorderStateMachine()
+    private var engine: AVAudioEngine?
+    private var fileURL: URL?
+    private var flushTask: Task<Void, Never>?
+    private var interruptionObserver: NSObjectProtocol?
+
+    private let pipeline: CapturePipeline
+    private let onCaptureComplete: @MainActor () -> Void
+
+    init(pipeline: CapturePipeline, onCaptureComplete: @escaping @MainActor () -> Void = {}) {
+        self.pipeline = pipeline
+        self.onCaptureComplete = onCaptureComplete
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleInterruption()
+            }
+        }
+    }
+
+    func start() {
+        let nowMS = UUIDv7Generator.currentMS()
+        guard case .beginCapture(let startedAtMS) = machine.start(nowMS: nowMS) else { return }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.record, mode: .default)
+            try session.setActive(true)
+            try beginEngine()
+            status = .recording(startedAtMS: startedAtMS)
+        } catch {
+            _ = machine.stop()
+            status = .failed("microphone unavailable: \(error.localizedDescription)")
+        }
+    }
+
+    func stop() {
+        guard case .finalizeCapture(let startedAtMS, let interrupted) = machine.stop() else { return }
+        finalize(startedAtMS: startedAtMS, interrupted: interrupted)
+    }
+
+    private func handleInterruption() {
+        guard case .finalizeCapture(let startedAtMS, _) = machine.interruption() else { return }
+        finalize(startedAtMS: startedAtMS, interrupted: true)
+    }
+
+    private func beginEngine() throws {
+        let url = pipeline.audioStore.reserveTemporaryPath()
+        let engine = AVAudioEngine()
+        let input = engine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        let file = try AVAudioFile(
+            forWriting: url,
+            settings: [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVSampleRateKey: format.sampleRate,
+                AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+            ],
+            commonFormat: .pcmFormatFloat32,
+            interleaved: false)
+
+        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+            try? file.write(from: buffer)
+            let level = Self.rmsLevel(of: buffer)
+            Task { @MainActor [weak self] in
+                self?.pushLevel(level)
+            }
+        }
+        try engine.start()
+        self.engine = engine
+        self.fileURL = url
+        levels = []
+
+        flushTask = Task { [pipeline, url] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                try? pipeline.audioStore.flush(path: url)
+            }
+        }
+    }
+
+    private func finalize(startedAtMS: Int64, interrupted: Bool) {
+        flushTask?.cancel()
+        flushTask = nil
+        engine?.inputNode.removeTap(onBus: 0)
+        engine?.stop()
+        engine = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        guard let url = fileURL else {
+            status = .idle
+            return
+        }
+        fileURL = nil
+        let durationMS = UUIDv7Generator.currentMS() - startedAtMS
+        status = .idle
+        Task {
+            do {
+                try await pipeline.completeAudioCapture(
+                    temporaryFile: url,
+                    startedAtMS: startedAtMS,
+                    durationMS: durationMS,
+                    interrupted: interrupted)
+                await MainActor.run { self.onCaptureComplete() }
+            } catch {
+                await MainActor.run { self.status = .failed("capture failed: \(error)") }
+            }
+        }
+    }
+
+    private func pushLevel(_ level: Float) {
+        levels.append(level)
+        if levels.count > 48 {
+            levels.removeFirst(levels.count - 48)
+        }
+    }
+
+    private nonisolated static func rmsLevel(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let data = buffer.floatChannelData?[0] else { return 0 }
+        let frames = Int(buffer.frameLength)
+        guard frames > 0 else { return 0 }
+        var sum: Float = 0
+        for index in 0..<frames {
+            sum += data[index] * data[index]
+        }
+        return min(1, (sum / Float(frames)).squareRoot() * 6)
+    }
+}
+#endif

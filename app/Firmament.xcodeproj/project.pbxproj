@@ -10,6 +10,7 @@
 		C00000000000000000000021 /* FirmamentWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000002 /* FirmamentWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B00000000000000000000021 /* FirmamentKit in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000004 /* FirmamentKit */; };
 		C00000000000000000000022 /* FirmamentKit in Frameworks */ = {isa = PBXBuildFile; productRef = C00000000000000000000004 /* FirmamentKit */; };
+		D00000000000000000000022 /* FirmamentKit in Frameworks */ = {isa = PBXBuildFile; productRef = D00000000000000000000004 /* FirmamentKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +70,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D00000000000000000000022 /* FirmamentKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -160,6 +162,7 @@
 			);
 			name = FirmamentWidgets;
 			packageProductDependencies = (
+				D00000000000000000000004 /* FirmamentKit */,
 			);
 			productName = FirmamentWidgets;
 			productReference = D00000000000000000000002 /* FirmamentWidgets.appex */;
@@ -421,6 +424,10 @@
 			productName = FirmamentKit;
 		};
 		C00000000000000000000004 /* FirmamentKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FirmamentKit;
+		};
+		D00000000000000000000004 /* FirmamentKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FirmamentKit;
 		};

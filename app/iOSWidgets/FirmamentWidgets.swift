@@ -5,7 +5,7 @@ import WidgetKit
 struct FirmamentWidgets: WidgetBundle {
     var body: some Widget {
         LockScreenCaptureWidget()
-        // The recording Live Activity lands with U10.
+        RecordingLiveActivity()
     }
 }
 
