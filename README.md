@@ -13,6 +13,8 @@ what the operator knows but who they are.
 The full architecture lives in [`docs/SPEC.md`](docs/SPEC.md). This repository currently
 holds the **landing page**; the native app (Swift, macOS 26 / iOS 26) lands in `app/`.
 
+**Live:** https://firmament-tau.vercel.app
+
 ## Repository layout
 
 ```
@@ -23,49 +25,66 @@ Firmament/
   site/              # the landing page (static, zero-build)
     index.html
     styles.css
-    constellation.js
+    sky.js           # canvas sky, THE FOLD scroll-scrub, ledger spine, form
+    fonts.css        # self-hosted @font-face (Spectral / Hanken / IBM Plex Mono)
+    fonts/           # latin-subset woff2
   app/               # the Swift app (later)
 ```
 
-## The landing page
+## The landing page — "The Ledger Made Law"
 
-Static HTML/CSS/vanilla JS. No framework, no build step, no dependencies. The hero is a
-live constellation rendered on `<canvas>` — an echo of the app's Atlas — that drifts,
-twinkles, parallaxes to the cursor, and draws hairline edges between nearby stars.
+An editorial constitution rendered on a live night sky. Static HTML/CSS/vanilla JS —
+no framework, no build step, no runtime dependencies (fonts are self-hosted). The
+concept: the page obeys its own product's first law. As you scroll, an append-only
+**ledger spine** writes itself down the left margin; the centerpiece, **THE FOLD**, is
+a scroll-scrubbed split screen that enacts *"one breath → a star with a history"* — an
+agent's terminal and a human's igniting star reading the same event stream two ways;
+and **THE REFUSAL** shows the Gate withhold a Sanctum memory, where no star ignites.
+
+Type system, strict roles: **Spectral** (serif) = law/display, **Hanken Grotesk** =
+UI/human voice, **IBM Plex Mono** = machine voice. Palette: cream on midnight with
+low-saturation star-kind tints and a periwinkle accent. Accessible (WCAG AA,
+keyboard-operable, `aria-live`), reduced-motion-equal, and compositor-only for 120 fps.
 
 ### Run it locally
 
-Any static server works. From the repo root:
+Any static server works:
 
 ```sh
-cd site
-python3 -m http.server 4000
+python3 -m http.server 4000 --directory site
 # open http://localhost:4000
 ```
 
-Or just open `site/index.html` directly in a browser.
+Or open `site/index.html` directly in a browser.
 
 ### Wire up the waitlist
 
-The "request access" form works with zero backend. Open `site/index.html` and set one
-of the two config values near the top of the inline `<script>`:
+The "request access" form works with zero backend. Open `site/sky.js` and set one of
+the two config values at the top (`const WAITLIST = { endpoint: "", mailto: "" }`):
 
-- `WAITLIST.endpoint` — a [Formspree](https://formspree.io) (or similar) POST URL. If
-  set, submissions are sent there and the visitor sees a success state.
-- `WAITLIST.mailto` — an email address. If no endpoint is set, submitting opens the
-  visitor's mail client with a pre-filled message to this address.
+- `WAITLIST.endpoint` — a [Formspree](https://formspree.io) (or similar) POST URL.
+  Submissions are sent there and the visitor sees the append-confirmation.
+- `WAITLIST.mailto` — an email address. With no endpoint set, submitting opens the
+  visitor's mail client, pre-filled to this address.
 
-If neither is set, the form still validates and confirms, but nothing is collected —
-so set one before going live.
+With neither set, the form validates and honestly reports that the waitlist isn't
+collecting yet — it never fabricates a signup.
 
 ### Deploy
 
-It's static, so anything serves it: GitHub Pages (point at `/site`), Vercel, Netlify,
-Cloudflare Pages. No configuration required.
+It's static, so anything serves it. Currently on **Vercel** (project `firmament`,
+production alias `firmament-tau.vercel.app`):
+
+```sh
+vercel deploy --cwd site --prod
+```
+
+GitHub Pages (point at `/site`), Netlify, or Cloudflare Pages work with no config.
 
 ## Design language: Nocturne
 
 Near-black field with a barely-perceptible blue-violet radial breath. Stars with soft
-bloom, hued by kind within a narrow saturation band — a night sky, not a dashboard. A
-quiet grotesk for UI; a serif with real italics for law and manifesto text. Motion eases
-with strong, snappy curves and respects `prefers-reduced-motion`.
+bloom, hued by kind within a narrow saturation band — a night sky, not a dashboard.
+Serif with real italics for law and manifesto text; a quiet grotesk for the human
+voice; monospace for the machine. Motion eases with strong, snappy curves, is
+compositor-only, and respects `prefers-reduced-motion`.
