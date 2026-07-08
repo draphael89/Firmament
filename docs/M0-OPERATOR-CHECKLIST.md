@@ -19,9 +19,12 @@ the 50-kill crash suite passes in CI.
 | 4 | Two-device sync round-trip (airplane mode) | ✅ offline capture + transcript synced; both chains verify |
 | 5 | One week of daily use | ⬜ in progress |
 
-Three defects surfaced only on hardware and are fixed: the realtime audio-tap executor
-assertion (capture crashed on first buffer), the unretained `CKSyncEngine` delegate (sync was
-a silent no-op — nothing ever uploaded), and the iOS ledger living at the App Group root.
+Five defects surfaced only on hardware or on inspection, and are fixed: the realtime audio-tap
+executor assertion (capture crashed on first buffer), the unretained `CKSyncEngine` delegate
+(sync was a silent no-op — nothing ever uploaded), the iOS ledger living at the App Group root,
+the missing `UIBackgroundModes = [audio]` (the Action Button path could never have recorded
+while backgrounded), and the latency instrumentation anchoring at `start()` rather than at
+process spawn — which would have reported a cold press as fast as a warm one.
 
 Open signal for item 2: transcripts of app-UI captures have begun mid-phrase, and one 11-second
 utterance recorded as 9.8 s. That is suggestive of start-of-capture clipping but does not
@@ -40,13 +43,33 @@ decide KTD11 — the Action Button path is separate and still unmeasured.
 
 ## 2. U1 latency spike (gates KTD11's final shape)
 
+The capture now instruments itself, so this is one physical press and no stopwatch. Every
+phone capture stamps two numbers into its `capture.audio` payload `context`:
+
+| field | measures |
+|---|---|
+| `processAgeAtStartMS` | process spawn → `start()`: launch, App Intents resolution, `PhoneModel` init |
+| `startLatencyMS` | `start()` → first audio sample: audio-session activation, engine start |
+
+A **cold** press (the case SPEC §9.2 budgets) is one where `processAgeAtStartMS` is small —
+single-digit seconds — meaning iOS spawned the process to service the intent. There,
+`press-to-first-sample ≥ processAgeAtStartMS + startLatencyMS`. It is a lower bound: the gap
+between the physical press and the spawn is not observable from inside the process. On a
+**warm** press (app already resident, `processAgeAtStartMS` in the minutes) the first term is
+meaningless and `startLatencyMS` alone is the cost.
+
+Measuring only `startLatencyMS` would have understated the cold path by the entire launch
+cost and wrongly passed KTD11.
+
 - [ ] Assign the "Firmament Capture" shortcut to the Action Button
-      (Settings → Action Button → Shortcut).
-- [ ] From a **locked** phone, press the Action Button; speak immediately.
-- [ ] Measure press-to-first-captured-sample (compare the utterance start against the saved
-      audio; the capture's `occurredAt` and the file are in the App Group container).
-- [ ] Record the number in the plan's U1 verification note. If the first ~2s are lost, the
-      fallback is a persistent warm audio session (plan Risks) — flag it before building on KTD11.
+      (Settings → Action Button → Shortcut). Enable Live Activities for Firmament.
+- [ ] Open the app once after install (microphone permission must already be granted).
+- [ ] **Lock the phone.** Press the Action Button, speak immediately, press again to stop.
+- [ ] Read the numbers out of the phone's own ledger:
+      `swift run --package-path app/FirmamentKit firmament export`, then find the
+      `capture.audio` whose `context.source == "actionButton"`.
+- [ ] Verdict: if the cold sum exceeds **2000 ms**, KTD11 flips to the fallback — a persistent
+      warm audio session (plan Risks) — and the finding goes to a spec conversation.
 
 ## 3. Mac smoke checklist (U5)
 

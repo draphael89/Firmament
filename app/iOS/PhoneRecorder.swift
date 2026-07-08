@@ -133,6 +133,11 @@ final class PhoneRecorder {
         if let firstBufferAtMS {
             context["startLatencyMS"] = String(max(0, firstBufferAtMS - startedAtMS))
         }
+        // Cold Action Button presses spend most of their budget before
+        // `start()` ever runs (spawn, intent resolution, PhoneModel init).
+        // Record the two halves separately rather than a classified total —
+        // facts on the hot path, judgment at read time (Tenet 8).
+        context["processAgeAtStartMS"] = String(max(0, startedAtMS - ProcessStart.epochMS))
         launchedFromIntent = false
         status = .idle
         Task {
