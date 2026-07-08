@@ -24,6 +24,7 @@ final class PhoneRecorder {
 
     private var machine = RecorderStateMachine()
     private var engine: AVAudioEngine?
+    private var tapWriter: AudioTapWriter?
     private var fileURL: URL?
     private var flushTask: Task<Void, Never>?
     private var interruptionObserver: NSObjectProtocol?
@@ -85,15 +86,18 @@ final class PhoneRecorder {
             commonFormat: .pcmFormatFloat32,
             interleaved: false)
 
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
-            try? file.write(from: buffer)
-            let level = Self.rmsLevel(of: buffer)
+        // The tap runs on CoreAudio's realtime queue — it must carry no
+        // actor isolation (the executor assertion crash). AudioTapWriter is
+        // nonisolated; levels hop to the main actor explicitly.
+        let writer = AudioTapWriter(file: file) { [weak self] level in
             Task { @MainActor [weak self] in
                 self?.pushLevel(level)
             }
         }
+        input.installTap(onBus: 0, bufferSize: 4096, format: format, block: writer.handle)
         try engine.start()
         self.engine = engine
+        self.tapWriter = writer
         self.fileURL = url
         levels = []
 
@@ -111,6 +115,7 @@ final class PhoneRecorder {
         engine?.inputNode.removeTap(onBus: 0)
         engine?.stop()
         engine = nil
+        tapWriter = nil // Releases the AVAudioFile → closes and completes the CAF header.
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         guard let url = fileURL else {
             status = .idle
@@ -138,17 +143,6 @@ final class PhoneRecorder {
         if levels.count > 48 {
             levels.removeFirst(levels.count - 48)
         }
-    }
-
-    private nonisolated static func rmsLevel(of buffer: AVAudioPCMBuffer) -> Float {
-        guard let data = buffer.floatChannelData?[0] else { return 0 }
-        let frames = Int(buffer.frameLength)
-        guard frames > 0 else { return 0 }
-        var sum: Float = 0
-        for index in 0..<frames {
-            sum += data[index] * data[index]
-        }
-        return min(1, (sum / Float(frames)).squareRoot() * 6)
     }
 }
 #endif

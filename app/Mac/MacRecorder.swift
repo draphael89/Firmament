@@ -24,7 +24,7 @@ final class MacRecorder {
 
     private var machine = RecorderStateMachine()
     private var engine: AVAudioEngine?
-    private var file: AVAudioFile?
+    private var tapWriter: AudioTapWriter?
     private var fileURL: URL?
     private var flushTask: Task<Void, Never>?
 
@@ -74,18 +74,19 @@ final class MacRecorder {
             commonFormat: .pcmFormatFloat32,
             interleaved: false)
 
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
-            // Audio-thread callback: write, then hand the level to the UI.
-            try? file.write(from: buffer)
-            let level = Self.rmsLevel(of: buffer)
+        // The tap runs on CoreAudio's realtime queue — it must carry no
+        // actor isolation (the executor assertion crash). AudioTapWriter is
+        // nonisolated; levels hop to the main actor explicitly.
+        let writer = AudioTapWriter(file: file) { [weak self] level in
             Task { @MainActor [weak self] in
                 self?.pushLevel(level)
             }
         }
+        input.installTap(onBus: 0, bufferSize: 4096, format: format, block: writer.handle)
         try engine.start()
 
         self.engine = engine
-        self.file = file
+        self.tapWriter = writer
         self.fileURL = url
         levels = []
 
@@ -105,7 +106,7 @@ final class MacRecorder {
         engine?.inputNode.removeTap(onBus: 0)
         engine?.stop()
         engine = nil
-        file = nil // AVAudioFile closes (and completes the CAF header) on release.
+        tapWriter = nil // Releases the AVAudioFile → closes and completes the CAF header.
         guard let url = fileURL else {
             status = .idle
             return
@@ -132,16 +133,5 @@ final class MacRecorder {
         if levels.count > 48 {
             levels.removeFirst(levels.count - 48)
         }
-    }
-
-    private nonisolated static func rmsLevel(of buffer: AVAudioPCMBuffer) -> Float {
-        guard let data = buffer.floatChannelData?[0] else { return 0 }
-        let frames = Int(buffer.frameLength)
-        guard frames > 0 else { return 0 }
-        var sum: Float = 0
-        for index in 0..<frames {
-            sum += data[index] * data[index]
-        }
-        return min(1, (sum / Float(frames)).squareRoot() * 6)
     }
 }
