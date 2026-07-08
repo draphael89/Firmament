@@ -154,6 +154,12 @@ public struct AudioFileStore: Sendable {
 
     /// Periodic in-capture durability for adapter-written files: full-fsync
     /// through a fresh descriptor (fsync flushes the file, not the fd).
+    ///
+    /// `O_RDONLY` is deliberate. Neither `fsync(2)` nor `F_FULLFSYNC` requires
+    /// write access — they flush the vnode, not the descriptor — and a
+    /// directory (which `fullSync(directory:)` must sync to make the rename
+    /// durable) cannot be opened `O_RDWR` at all: it returns `EISDIR`.
+    /// Pinned by `fullSyncThroughReadOnlyDescriptor`.
     public func flush(path: URL) throws {
         let fd = open(path.path, O_RDONLY)
         guard fd >= 0 else { throw StoreError.cannotOpen(path.lastPathComponent) }

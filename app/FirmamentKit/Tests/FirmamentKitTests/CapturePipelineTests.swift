@@ -100,6 +100,32 @@ struct CapturePipelineTests {
         #expect(report.fatalDanglingLocal == [event.id])
     }
 
+    /// Static analysis keeps flagging `open(…, O_RDONLY)` before `F_FULLFSYNC`
+    /// as a write-permission bug. It is not: both flush the vnode, not the
+    /// descriptor. Switching to `O_RDWR` as "fixed" would break the directory
+    /// sync outright — `open(dir, O_RDWR)` returns `EISDIR` — and that sync is
+    /// what makes the rename durable (KTD2).
+    @Test("full-fsync succeeds through a read-only descriptor, for files and directories")
+    func fullSyncThroughReadOnlyDescriptor() async throws {
+        let (pipeline, root) = try makePipeline()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = pipeline.audioStore
+
+        let url = store.reserveTemporaryPath()
+        try Data("durable bytes".utf8).write(to: url)
+        try store.flush(path: url)  // opens O_RDONLY, then F_FULLFSYNC
+
+        // The rename's durability barrier: a directory has no writable fd.
+        try AudioFileStore.fullSync(directory: store.audioDirectory)
+        #expect(open(store.audioDirectory.path, O_RDWR) == -1, "directories are not O_RDWR openable")
+
+        // And the whole finalize path still lands the event.
+        let event = try await pipeline.completeAudioCapture(
+            temporaryFile: url, startedAtMS: 1, durationMS: 1)
+        let payload = try CaptureAudioPayload(canonical: event.decodedPayload())
+        #expect(store.fileExists(hash: payload.fileHash))
+    }
+
     @Test("empty temp files are garbage-collected; non-empty are adopted")
     func partialAdoption() async throws {
         let (pipeline, root) = try makePipeline()
