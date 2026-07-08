@@ -20,7 +20,7 @@ struct ToggleCaptureIntent: AudioRecordingIntent {
         guard let model = PhoneModel.shared else {
             throw CaptureIntentError.notReady
         }
-        model.toggleCapture()
+        model.toggleCapture(fromIntent: true)
         return .result()
     }
 }

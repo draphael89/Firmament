@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import Synchronization
 
 /// Realtime-safe sink for AVAudio input taps. The tap callback runs on
 /// CoreAudio's realtime messenger queue; a closure formed inside a
@@ -16,15 +17,27 @@ import Foundation
 public final class AudioTapWriter: @unchecked Sendable {
     private let file: AVAudioFile
     private let onLevel: @Sendable (Float) -> Void
+    private let firstBufferMS = Mutex<Int64?>(nil)
 
     public init(file: AVAudioFile, onLevel: @escaping @Sendable (Float) -> Void) {
         self.file = file
         self.onLevel = onLevel
     }
 
+    /// Epoch-ms of the first captured sample, or nil if none arrived. The
+    /// gap from the capture's `startedAtMS` is the start latency — the
+    /// number KTD11's Action Button gate turns on (SPEC §9.2: missing the
+    /// first two seconds of a thought is a product-killing bug).
+    public var firstBufferAtMS: Int64? {
+        firstBufferMS.withLock { $0 }
+    }
+
     /// Matches `AVAudioNodeTapBlock` — pass as an unapplied method reference
     /// so the block carries no actor isolation.
     public func handle(buffer: AVAudioPCMBuffer, when: AVAudioTime) {
+        firstBufferMS.withLock { stamp in
+            if stamp == nil { stamp = UUIDv7Generator.currentMS() }
+        }
         try? file.write(from: buffer)
         onLevel(Self.rmsLevel(of: buffer))
     }

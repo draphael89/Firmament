@@ -106,6 +106,8 @@ final class MacRecorder {
         engine?.inputNode.removeTap(onBus: 0)
         engine?.stop()
         engine = nil
+        // The gap from hotkey-press to first sample (SPEC §9.2's budget).
+        let firstBufferAtMS = tapWriter?.firstBufferAtMS
         tapWriter = nil // Releases the AVAudioFile → closes and completes the CAF header.
         guard let url = fileURL else {
             status = .idle
@@ -113,6 +115,10 @@ final class MacRecorder {
         }
         fileURL = nil
         let durationMS = UUIDv7Generator.currentMS() - startedAtMS
+        var context = ["source": "hotkey"]
+        if let firstBufferAtMS {
+            context["startLatencyMS"] = String(max(0, firstBufferAtMS - startedAtMS))
+        }
         status = .idle
         Task {
             do {
@@ -120,6 +126,7 @@ final class MacRecorder {
                     temporaryFile: url,
                     startedAtMS: startedAtMS,
                     durationMS: durationMS,
+                    context: context,
                     interrupted: interrupted)
                 await MainActor.run { self.onCaptureComplete() }
             } catch {

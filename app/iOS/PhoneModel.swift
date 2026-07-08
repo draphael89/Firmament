@@ -82,11 +82,12 @@ final class PhoneModel {
     /// The Action Button entry (KTD11): toggles capture; the Live Activity
     /// is mandatory while an AudioRecordingIntent records and doubles as the
     /// status surface.
-    func toggleCapture() {
+    func toggleCapture(fromIntent: Bool = false) {
         if recorder.isRecording {
             recorder.stop()
             endLiveActivity()
         } else {
+            recorder.launchedFromIntent = fromIntent
             recorder.start()
             if case .recording(let startedAtMS) = recorder.status {
                 startLiveActivity(startedAtMS: startedAtMS)

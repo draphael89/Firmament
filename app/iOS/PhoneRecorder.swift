@@ -22,6 +22,10 @@ final class PhoneRecorder {
         return false
     }
 
+    /// Set by the Action Button intent so the capture records which entry
+    /// path it came through — the two have different warm-up costs.
+    var launchedFromIntent = false
+
     private var machine = RecorderStateMachine()
     private var engine: AVAudioEngine?
     private var tapWriter: AudioTapWriter?
@@ -115,6 +119,8 @@ final class PhoneRecorder {
         engine?.inputNode.removeTap(onBus: 0)
         engine?.stop()
         engine = nil
+        // The gap from button-press to first sample is KTD11's gate (SPEC §9.2).
+        let firstBufferAtMS = tapWriter?.firstBufferAtMS
         tapWriter = nil // Releases the AVAudioFile → closes and completes the CAF header.
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         guard let url = fileURL else {
@@ -123,6 +129,11 @@ final class PhoneRecorder {
         }
         fileURL = nil
         let durationMS = UUIDv7Generator.currentMS() - startedAtMS
+        var context = ["source": launchedFromIntent ? "actionButton" : "app"]
+        if let firstBufferAtMS {
+            context["startLatencyMS"] = String(max(0, firstBufferAtMS - startedAtMS))
+        }
+        launchedFromIntent = false
         status = .idle
         Task {
             do {
@@ -130,6 +141,7 @@ final class PhoneRecorder {
                     temporaryFile: url,
                     startedAtMS: startedAtMS,
                     durationMS: durationMS,
+                    context: context,
                     interrupted: interrupted)
                 await MainActor.run { self.onCaptureComplete() }
             } catch {
