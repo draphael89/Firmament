@@ -27,3 +27,6 @@ Package.resolved
 # Secrets — never commit the waitlist endpoint or keys
 .env
 .env.local
+
+# Vercel
+.vercel

@@ -4,387 +4,304 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Firmament — a private brain for one mind</title>
-  <meta name="description" content="Firmament is an identity substrate: capture your mind by voice, compound it into structured knowledge overnight, and serve it to yourself and the agents you trust — as equals. Voice-first. Agent-legible. Mac-native." />
-  <meta name="theme-color" content="#07080d" />
-
-  <!-- Open Graph -->
+  <meta name="description" content="An identity substrate: capture your mind by voice, compound it into structured knowledge overnight, and serve it to yourself and the agents you trust — as equals. An append-only constitution rendered on a live sky." />
+  <meta name="theme-color" content="#08080c" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Firmament — a private brain for one mind" />
-  <meta property="og:description" content="Speak your mind on a walk. It compounds into structured knowledge overnight — and serves you and the agents you trust, as equals." />
+  <meta property="og:description" content="One breath into the phone; by morning it is a star with a history. Voice-first. Agent-legible. Mac-native." />
   <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2308080c'/%3E%3Cg fill='none' stroke='%23ece7dc' stroke-width='1'%3E%3Cline x1='16' y1='5' x2='16' y2='11'/%3E%3Cline x1='16' y1='21' x2='16' y2='27'/%3E%3Cline x1='5' y1='16' x2='11' y2='16'/%3E%3Cline x1='21' y1='16' x2='27' y2='16'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='2.4' fill='%23f1ece2'/%3E%3C/svg%3E" />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23ffffff'/%3E%3Cstop offset='1' stop-color='%23aeb8ff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='32' height='32' fill='%2307080d'/%3E%3Ccircle cx='16' cy='16' r='13' fill='url(%23g)'/%3E%3Cpath d='M16 5 L17.6 14.4 L27 16 L17.6 17.6 L16 27 L14.4 17.6 L5 16 L14.4 14.4 Z' fill='%23ffffff'/%3E%3C/svg%3E" />
-
+  <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- If JS is off, reveal everything immediately (no fade-in to wait on). -->
-  <noscript>
-    <style>
-      .reveal { opacity: 1 !important; transform: none !important; }
-      #sky { display: none; }
-    </style>
-  </noscript>
+  <noscript><style>.reveal{opacity:1;transform:none}#sky{display:none}.fold{height:auto}.fold__stage{position:static;height:auto}.fold__star{transform:scale(1);opacity:1}.term__line{opacity:1}</style></noscript>
 </head>
 <body>
-  <canvas id="sky" aria-hidden="true"></canvas>
-  <div class="vignette" aria-hidden="true"></div>
+  <a class="skip-link" href="#thesis">Skip to content</a>
 
-  <!-- Sticky mini-header, fades in past the hero -->
-  <header class="topbar" id="topbar">
-    <span class="mark">Firmament</span>
-    <a class="mini-cta" href="#waitlist">Request access</a>
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <div class="field-wash" aria-hidden="true"></div>
+  <div id="dawn" aria-hidden="true"></div>
+
+  <header class="nav" id="nav">
+    <span class="nav__mark">FIRMAMENT</span>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#thesis">Thesis</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#tenets">Tenets</a>
+      <a href="#ledger">Ledger</a>
+      <a class="nav__cta" href="#request">Request access</a>
+    </nav>
   </header>
 
-  <main class="page">
+  <div class="page">
+    <div class="rail" id="rail" aria-hidden="true">
+      <div class="rail__fill"></div>
+      <div class="rail__star"></div>
+    </div>
 
-    <!-- ── HERO ──────────────────────────────────────────────────────────── -->
-    <section class="hero" id="top">
-      <h1 class="wordmark reveal">FIRMAMENT</h1>
-      <p class="tagline reveal" style="--i: 1">A private brain for one mind.</p>
-      <p class="hero-thesis reveal" style="--i: 2">
-        Speak your mind on a walk. It compounds into structured knowledge
-        overnight — and serves the one human who made it and the agents they
-        trust, as equals.
-      </p>
-      <div class="hero-cta reveal" style="--i: 3">
-        <a class="btn" href="#waitlist">
-          Request access <span class="arrow" aria-hidden="true">→</span>
-        </a>
-        <span class="hero-note">Voice-first · Agent-legible · Mac-native</span>
+    <!-- ── HERO — THE BREATH ─────────────────────────────────────────────── -->
+    <section class="hero" id="top" data-node="ledger.init">
+      <div class="shell">
+        <p class="eyebrow eyebrow--accent hero__eyebrow reveal">An identity substrate · n = 1 · building in public</p>
+        <h1 class="hero__display reveal" style="--i:1">A private brain<br>for <em>one mind.</em></h1>
+        <p class="hero__sub reveal" style="--i:2">Voice-first. Agent-legible. Mac-native.</p>
+        <div class="hero__triad reveal" style="--i:3">
+          <div><div class="k">Substrate</div><div class="v">not an app, a ledger</div></div>
+          <div><div class="k">Sovereign</div><div class="v">you hold the pen</div></div>
+          <div><div class="k">Sanctum</div><div class="v">structurally private</div></div>
+        </div>
+        <div class="scroll-cue reveal" style="--i:4"><span>Scroll</span><span class="rule"></span></div>
       </div>
-      <a class="scroll-cue" href="#thesis" aria-label="Scroll to read more">
-        <span>Enter</span>
-        <span class="chev" aria-hidden="true"></span>
-      </a>
+      <div class="hero__star" aria-hidden="true"></div>
     </section>
 
     <!-- ── THESIS ────────────────────────────────────────────────────────── -->
-    <section id="thesis">
-      <div class="wrap column prose" data-stagger>
-        <p class="eyebrow reveal">The thesis</p>
-        <h2 class="reveal">Not a note-taking app. Not a retrieval database. An identity substrate.</h2>
-        <p class="lead reveal">
-          As models grow more capable, the scarce input becomes <em>personal
-          context</em> — your values, your taste, the compressed prior of one
-          specific mind.
-        </p>
-        <p class="reveal">
-          Firmament holds that prior in a portable, governed, injectable form,
-          so every agent that touches it becomes meaningfully more aligned with
-          its operator. It captures raw material — voice notes, text, fragments
-          — and compounds it into a knowledge graph while you sleep. Built for
-          exactly one operator, which means every generalization tax is refused.
-        </p>
-        <p class="reveal">
-          The machine never holds the pen on identity. It drafts, cites, and
-          proposes; <em>you ratify</em>. What you are is human-sovereign by
-          construction.
-        </p>
+    <section class="thesis divider" id="thesis" data-node="thesis">
+      <div class="shell">
+        <p class="eyebrow reveal">Not an app. A substrate.</p>
+        <h2 class="reveal" style="--i:1">You speak one raw thought. Overnight it becomes <em>structured knowledge</em> — read by two clients, <em>you and your agents</em>, as equals.</h2>
+        <div class="prose thesis__grid" style="margin-top:44px">
+          <p class="serif-lede reveal" style="--i:2">A human edit and an agent write are the same primitive: an event appended to the <em>Ledger</em>. Everything visible — the graph, the search, the constitution, the sky — is a disposable <em>Lens</em> folded back from that one immutable truth.</p>
+          <p class="reveal" style="--i:3">The bet: as models grow more capable, the scarce input becomes personal context — values, taste, decision heuristics, the compressed prior of a specific mind. Firmament holds that prior in a portable, injectable, governed form, and the machine never holds the pen on it. It drafts, cites, and proposes; <em style="font-style:italic;color:var(--cream-hi)">you ratify.</em></p>
+        </div>
+        <p class="pullquote reveal" style="--i:4">The audit log cannot drift from reality, because it <em>is</em> reality.</p>
+        <div class="margin-gloss reveal" style="--i:5">
+          <span><b>LEDGER</b> · the only truth</span>
+          <span><b>LENS</b> · disposable, rebuildable</span>
+          <span><b>DREAM</b> · consolidates, never mutates</span>
+        </div>
       </div>
     </section>
 
-    <!-- ── TWO SURFACES ──────────────────────────────────────────────────── -->
-    <section id="surfaces">
-      <div class="wrap">
-        <div class="column">
-          <p class="eyebrow reveal">One substrate, two surfaces</p>
-          <h2 class="reveal">Two first-class clients, served as equals.</h2>
-          <p class="prose reveal" style="color: var(--ink-soft)">
-            A human edit and an agent write are the same primitive — an event
-            appended to the Ledger. Neither surface is a translation layer over
-            the other.
-          </p>
-        </div>
-        <div class="surfaces" data-stagger>
-          <article class="card reveal">
-            <div class="surface-glyph" aria-hidden="true">✦</div>
-            <div class="role">For you</div>
-            <h3>The Atlas</h3>
-            <p>
-              A planetarium of your own mind. Every entity is a star — sized by
-              centrality, brightened by recent thought, drifting only as slowly
-              as your mind actually changes. Scrub a year of your own thinking
-              cluster and re-form. Rendered in Metal at 120fps, or not at all.
-            </p>
+    <!-- ── THREE PROPERTIES ──────────────────────────────────────────────── -->
+    <section class="props divider" data-node="properties">
+      <div class="shell shell--wide">
+        <p class="eyebrow reveal">Three properties, non-negotiable</p>
+        <h2 class="reveal" style="--i:1">Everything else is generated by these.</h2>
+        <div class="props__grid">
+          <article class="prop reveal" style="--pk:var(--amber);--i:1">
+            <div class="marker" aria-hidden="true"></div>
+            <p class="eyebrow eyebrow--accent">Voice is the front door</p>
+            <h3>One substrate, two surfaces</h3>
+            <p>Edit by hand or dictate to an agent — both land as one event on one Ledger. Neither is the master, neither the mirror; neither surface translates the other.</p>
           </article>
-          <article class="card reveal">
-            <div class="surface-glyph" aria-hidden="true">◈</div>
-            <div class="role">For your agents</div>
-            <h3>The Gate</h3>
-            <p>
-              A consent-gated MCP surface. Each agent perceives only the
-              projection you grant it — never the raw brain, never the Sanctum.
-              Every access is logged as a light-trail you can watch sweep across
-              the sky. The audit log can't drift from reality, because it is
-              reality.
-            </p>
+          <article class="prop reveal" style="--pk:var(--cyan);--i:2">
+            <div class="marker" aria-hidden="true"></div>
+            <p class="eyebrow eyebrow--accent">The human ratifies</p>
+            <h3>The machine never holds the pen</h3>
+            <p>The model proposes with citations; nothing enters your identity until you ratify it. The Constitution's core is unwritable by the machine — human-sovereign by construction.</p>
+          </article>
+          <article class="prop reveal" style="--pk:var(--violet);--i:3">
+            <div class="marker" aria-hidden="true"></div>
+            <p class="eyebrow eyebrow--accent">Privacy lives in the data</p>
+            <h3>Enforced at materialization</h3>
+            <p>Sensitivity is stamped at capture, enforced when views are folded. Nothing above a tier can ever perceive it — not a grant, not an escalation, not a bug in a prompt.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- ── THE LOOP ──────────────────────────────────────────────────────── -->
-    <section id="loop">
-      <div class="wrap">
-        <div class="column">
-          <p class="eyebrow reveal">How it works</p>
-          <h2 class="reveal">One breath in. By morning, a star with a history.</h2>
-        </div>
-        <div class="loop" data-stagger>
-          <div class="loop-step reveal">
-            <div class="node"></div>
-            <div class="step-name">Capture</div>
-            <div class="step-sub">Voice, on a walk, offline.</div>
-          </div>
-          <div class="loop-step reveal">
-            <div class="node"></div>
-            <div class="step-name">Ledger</div>
-            <div class="step-sub">Appended, never mutated.</div>
-          </div>
-          <div class="loop-step reveal">
-            <div class="node"></div>
-            <div class="step-name">Dream</div>
-            <div class="step-sub">Nightly consolidation.</div>
-          </div>
-          <div class="loop-step reveal">
-            <div class="node"></div>
-            <div class="step-name">Lens</div>
-            <div class="step-sub">Graph · index · law.</div>
-          </div>
-          <div class="loop-step reveal">
-            <div class="node"></div>
-            <div class="step-name">Sky</div>
-            <div class="step-sub">A living map of you.</div>
-          </div>
-        </div>
-        <p class="loop-caption reveal">
-          Every derived view is disposable — rebuildable, byte-for-byte, from
-          the Ledger alone. Nothing above a memory's tier can ever perceive it.
-        </p>
-      </div>
-    </section>
-
-    <!-- ── THE TENETS ────────────────────────────────────────────────────── -->
-    <section id="tenets">
-      <div class="wrap">
-        <div class="column">
-          <p class="eyebrow reveal">The ten tenets</p>
-          <h2 class="reveal">The laws of the build.</h2>
-        </div>
-        <div class="tenets" data-stagger>
-          <div class="tenet reveal"><span class="num">01</span><span class="body"><strong>Append, never mutate.</strong><span>The Ledger is immutable. Corrections are new events.</span></span></div>
-          <div class="tenet reveal"><span class="num">02</span><span class="body"><strong>Every Lens is disposable.</strong><span>If a view can't be regenerated from truth, it's contraband.</span></span></div>
-          <div class="tenet reveal"><span class="num">03</span><span class="body"><strong>On-device by default.</strong><span>The hot path never leaves the machine. Egress is a ceremony.</span></span></div>
-          <div class="tenet reveal"><span class="num">04</span><span class="body"><strong>Voice is the front door.</strong><span>Capture must survive a walk with no signal.</span></span></div>
-          <div class="tenet reveal"><span class="num">05</span><span class="body"><strong>The human ratifies identity.</strong><span>Core changes need an explicit human verdict. No exceptions.</span></span></div>
-          <div class="tenet reveal"><span class="num">06</span><span class="body"><strong>Agents see projections.</strong><span>Every grant gets its own view. There is no raw mode.</span></span></div>
-          <div class="tenet reveal"><span class="num">07</span><span class="body"><strong>Audit in-band.</strong><span>The log can't drift from reality because it is reality.</span></span></div>
-          <div class="tenet reveal"><span class="num">08</span><span class="body"><strong>Deterministic before intelligent.</strong><span>Rules do what rules can, at zero token cost.</span></span></div>
-          <div class="tenet reveal"><span class="num">09</span><span class="body"><strong>Delete-first.</strong><span>No abstraction for a second user who will never exist.</span></span></div>
-          <div class="tenet reveal"><span class="num">10</span><span class="body"><strong>Immaculate or nothing.</strong><span>A janky sky is worse than no sky.</span></span></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── PRIVACY / SANCTUM ─────────────────────────────────────────────── -->
-    <section id="privacy">
-      <div class="wrap">
-        <div class="column prose">
-          <p class="eyebrow reveal">Privacy</p>
-          <h2 class="reveal">Privacy is a property of the data, not a policy of the app.</h2>
-          <p class="reveal" style="color: var(--ink-soft)">
-            Sensitivity is stamped at capture and enforced when views are folded
-            — not by a prompt that can be talked around. The highest tier isn't
-            hidden from agents; it's structurally absent from the universe they
-            can see.
-          </p>
-        </div>
-        <div class="wrap column" style="padding-inline: 0">
-          <div class="sanctum-tiers" data-stagger>
-            <div class="tier-row reveal">
-              <span class="dot open" aria-hidden="true"></span>
-              <span>
-                <span class="tier-name">Open</span> —
-                <span class="tier-desc">safe for any granted agent; eligible to escalate off-device.</span>
-              </span>
+    <!-- ── THE FOLD — the signature movement ─────────────────────────────── -->
+    <section class="fold" id="fold" data-node="the.fold" aria-label="The Fold — one breath becomes a star with a history">
+      <div class="fold__stage">
+        <div class="fold__grid">
+          <div class="fold__agent">
+            <span class="fold__col-label">The agent — a terminal</span>
+            <div class="term" role="img" aria-label="Agent terminal reading the same event stream: capture.audio, transcript, assertion, the Dream Cycle invalidating a superseded belief, and the verified chain.">
+              <div class="term__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span><span class="name">agent · working grant</span></div>
+              <div class="term__body">
+                <div class="term__line" data-beat="0"><span class="term__t">06:41 · trail · airplane mode</span></div>
+                <div class="term__line" data-beat="0"><span class="kind">capture.audio</span> <span class="tier-p">tier:personal</span> secs:74 <span class="h">sha256:9f2c…</span></div>
+                <div class="term__line" data-beat="1"> └ <span class="kind">transcript</span> <span class="k">asr</span>:<span class="s">whisperkit-large-v3</span></div>
+                <div class="term__line" data-beat="1"><span class="s">   "…the SKAN multiplier — Jonathan's login was never an add-to-cart…"</span></div>
+                <div class="term__line" data-beat="2">   └ <span class="kind">assertion</span> <span class="k">edge.assert</span></div>
+                <div class="term__line" data-beat="2"><span class="s">      skan-invest → jonathan-penn</span> conf:0.93 <span class="h">prev:a1e7…</span></div>
+                <div class="term__line" data-beat="3"><span class="term__t">02:00 · the Dream Cycle</span></div>
+                <div class="term__line" data-beat="3"><span class="inv">dream.edge.invalidate</span> edg:multiplier-q2 <span class="h">superseded, not deleted</span></div>
+                <div class="term__line" data-beat="4"><span class="k">chain</span>: intact <span class="ok">✓</span></div>
+              </div>
             </div>
-            <div class="tier-row reveal">
-              <span class="dot personal" aria-hidden="true"></span>
-              <span>
-                <span class="tier-name">Personal</span> —
-                <span class="tier-desc">the default; visible to high-resolution grants, egress only with per-request approval.</span>
-              </span>
-            </div>
-            <div class="tier-row reveal">
-              <span class="dot sanctum" aria-hidden="true"></span>
-              <span>
-                <span class="tier-name is-sanctum">Sanctum</span> —
-                <span class="tier-desc">never enters any projection, any escalation, any agent's universe. The panic switch is one shredded key away.</span>
-              </span>
+          </div>
+          <div class="fold__chain" aria-hidden="true"></div>
+          <div class="fold__human">
+            <span class="fold__col-label">You — a star</span>
+            <div class="fold__starwrap" aria-hidden="true">
+              <svg class="fold__edges" id="fold-edges" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet">
+                <path d="M200,200 Q120,150 62,112" pathLength="1" /><path d="M200,200 Q292,182 340,150" pathLength="1" />
+                <circle class="fold__elder" cx="62" cy="112" r="2.6" /><circle class="fold__elder" cx="340" cy="150" r="2.4" />
+              </svg>
+              <svg class="fold__wave" id="fold-wave" viewBox="0 0 260 120" preserveAspectRatio="xMidYMid meet">
+                <path d="M0,60 Q16,26 32,60 T64,60 T96,60 T128,60 T160,60 T192,60 T224,60 T256,60" pathLength="1" />
+              </svg>
+              <div class="fold__star" id="fold-star"></div>
+              <div class="fold__lineage" id="fold-lineage">9f2c → a1e7 → e5b2 · a star with a history</div>
             </div>
           </div>
         </div>
+        <div class="fold__conduit" id="fold-conduit" aria-hidden="true"></div>
+        <div class="fold__caption"><em id="fold-caption">06:41 — one breath</em></div>
+        <div class="fold__progress" id="fold-progress" aria-hidden="true"><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span></div>
       </div>
     </section>
 
-    <!-- ── WAITLIST ──────────────────────────────────────────────────────── -->
-    <section id="waitlist" class="waitlist">
-      <div class="wrap column" data-stagger>
-        <p class="eyebrow reveal">Request access</p>
-        <h2 class="reveal">The sky is being built.</h2>
-        <p class="prose reveal" style="color: var(--ink-soft)">
-          Firmament is a personal tool, made for one mind. If it resonates,
-          leave your email — you'll hear when there's something to see.
-        </p>
-        <form class="form reveal" id="waitlist-form" novalidate>
-          <input
-            type="email"
-            name="email"
-            inputmode="email"
-            autocomplete="email"
-            placeholder="you@example.com"
-            aria-label="Email address"
-            required
-          />
-          <button class="btn" type="submit">Join the waitlist</button>
+    <!-- ── THE GATE — THE REFUSAL ────────────────────────────────────────── -->
+    <section class="gate divider" data-node="the.gate">
+      <div class="shell">
+        <p class="eyebrow reveal">The Gate · agents see projections</p>
+        <h2 class="reveal" style="--i:1">Watch it refuse.</h2>
+        <p class="lede reveal" style="--i:2;margin-top:16px">The star woven overnight links to a prior memory — a 2 a.m. voice note about the same person, marked <em style="font-style:italic;color:var(--tier-sanctum)">Sanctum</em>. An agent asks for its projection.</p>
+        <div class="gate__grid reveal" style="--i:3">
+          <div class="gate__side gate__agent">
+            <div class="lbl">The agent — its projection</div>
+            <div class="gate__cell gate__void" role="img" aria-label="An empty void with a faint dashed scar where a star should be — nothing ignites.">
+              <span class="gate__scar"></span>
+              <span class="gate__withheld"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="1.2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>withheld</span>
+            </div>
+            <p>No star ignites. The memory was never in the agent's universe to begin with.</p>
+          </div>
+          <div class="gate__side gate__human">
+            <div class="lbl">You — the full sky</div>
+            <div class="gate__cell"><span class="gate__star" aria-hidden="true"></span></div>
+            <p>On your own surfaces the same star renders in full, ringed in deep indigo.</p>
+          </div>
+        </div>
+        <div class="gate__tape reveal" style="--i:4">
+          read evt:c1d0 · ent:jonathan-penn · tier:SANCTUM <span class="no">✗ withheld</span><br>
+          agent.access appended · 0xf3a1… · <span class="ok">2 returned</span>, <span class="no">1 withheld</span>
+        </div>
+        <p class="gate__caption reveal" style="--i:5">Sanctum is structurally invisible to agents — enforced at materialization, not by a prompt that can be talked around.</p>
+        <span class="sr-only" role="status" aria-live="polite" id="gate-announce"></span>
+      </div>
+    </section>
+
+    <!-- ── ARCHITECTURE ──────────────────────────────────────────────────── -->
+    <section class="arch divider" id="architecture" data-node="architecture">
+      <div class="shell shell--wide">
+        <p class="eyebrow reveal">The architecture</p>
+        <h2 class="reveal" style="--i:1">Five organs, one substrate.</h2>
+      </div>
+      <div class="shell shell--wide">
+        <div class="arch__flow reveal" style="--i:2">
+          <div class="chip" style="border-color:var(--line-3)">CAPTURE · voice · text · share · drop</div>
+          <div class="arch__stage-label">↓ &nbsp;FOLD</div>
+          <div class="arch__ledgerbox"><b>THE LEDGER</b><span>append-only · hash-chained · the only thing ever written</span></div>
+          <div class="arch__stage-label">↓ &nbsp;DERIVE — the Lenses</div>
+          <div class="arch__node-row">
+            <span class="chip">Vault</span><span class="chip">Graph</span><span class="chip">Index</span><span class="chip">Constitution</span><span class="chip">Projections</span><span class="chip">Positions</span>
+          </div>
+          <div class="arch__stage-label">↑ &nbsp;READ &amp; RENDER</div>
+          <div class="arch__node-row">
+            <span class="chip d">Dream Cycle · nightly</span><span class="chip g">The Gate → agents</span><span class="chip a">The Atlas → you</span>
+          </div>
+        </div>
+        <h3 class="eyebrow arch__organs-label reveal">The five organs</h3>
+        <div class="organs reveal" style="--i:1" role="group" aria-label="The five organs">
+          <button class="organ" style="--ok:var(--amber)"><span class="dot" aria-hidden="true"></span><h4>Ledger</h4><p>The canonical append-only event log. The only thing ever written.</p></button>
+          <button class="organ" style="--ok:var(--cyan)"><span class="dot" aria-hidden="true"></span><h4>Lens</h4><p>A view folded from the Ledger. Disposable, rebuildable, byte-for-byte.</p></button>
+          <button class="organ" style="--ok:var(--violet)"><span class="dot" aria-hidden="true"></span><h4>Dream Cycle</h4><p>The nightly daemon. Reads the Ledger, writes new events, never mutates.</p></button>
+          <button class="organ" style="--ok:var(--green)"><span class="dot" aria-hidden="true"></span><h4>The Gate</h4><p>The MCP server. The only door agents ever enter through.</p></button>
+          <button class="organ" style="--ok:var(--bluewhite)"><span class="dot" aria-hidden="true"></span><h4>The Atlas</h4><p>The spatial surface — the constellation rendering of the mind.</p></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── THE LEDGER, LAID BARE ─────────────────────────────────────────── -->
+    <section class="ledger divider" id="ledger" data-node="ledger.bare">
+      <div class="shell shell--wide">
+        <p class="eyebrow reveal">One thought, end to end</p>
+        <h2 class="reveal" style="--i:1">The Ledger, laid bare.</h2>
+        <div class="ledger__wrap reveal" style="--i:2">
+          <div class="termbig">
+            <div class="term__bar"><span class="dot a" style="background:var(--amber)"></span><span class="dot b" style="background:var(--accent)"></span><span class="dot c" style="background:var(--cyan)"></span><span class="name">ledger.sqlite</span></div>
+<pre><span class="t">// 06:41 · trail · airplane mode — the Action Button pressed</span>
+{ kind: <span class="kind">"capture.audio"</span>, tier: <span class="tier-p">"personal"</span>, secs: <span class="cy">74</span>,
+  hash: <span class="h">"9f2c…"</span> }
+  └ { kind: <span class="kind">"transcript"</span>, asr: <span class="s">"whisperkit-large-v3"</span>,
+       text: <span class="s">"…the SKAN multiplier is that Jonathan's login event</span>
+             <span class="s">was never an add to cart, which means the Alberta view…"</span>,
+       prev: <span class="h">"9f2c…"</span> }
+      └ { kind: <span class="kind">"assertion"</span>, op: <span class="inv">"edge.assert"</span>,
+           src: skan-invest → jonathan-penn,
+           predicate: <span class="s">"references"</span>, conf: <span class="cy">0.93</span>, prev: <span class="h">"a1e7…"</span> }
+
+<span class="t">// 02:00 · the Dream Cycle closes a superseded belief — it does not delete it</span>
+{ kind: <span class="kind">"assertion"</span>, author: <span class="inv">"dream"</span>,
+  op: <span class="inv">"edge.invalidate"</span>, edge: <span class="s">"multiplier-q2"</span>, prev: <span class="h">"e5b2…"</span> }
+
+<span class="t">// 07:05 · the morning digest mentions it</span>
+{ kind: <span class="kind">"distillation"</span>, type: <span class="s">"digest"</span>,
+  content: <span class="s">"The Alberta constellation brightened again — the</span>
+           <span class="s">belief you closed in June resurfaced with new evidence."</span> }</pre>
+          </div>
+          <div class="ledger__verify"><span>verify chain</span><span class="ok">chain: intact ✓</span></div>
+          <p class="ledger__cap">The only truth. Everything visible is a Lens folded from it — and nothing here is ever mutated.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TEN TENETS — Articles I–X ─────────────────────────────────────── -->
+    <section class="tenets divider" id="tenets" data-node="ten.tenets">
+      <div class="shell shell--wide">
+        <p class="eyebrow reveal">The ten tenets</p>
+        <h2 class="reveal" style="--i:1">The laws of the build. <em>Law should read like law.</em></h2>
+        <ol class="tenets__grid reveal" style="--i:2;list-style:none">
+          <li class="article"><span class="num" aria-hidden="true">I</span><div><h3>Append, never mutate</h3><p>The Ledger is immutable. Corrections are new events; deletion is a tombstone.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">II</span><div><h3>Every Lens is disposable</h3><p>Any view must rebuild byte-for-byte from truth, or it is contraband.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">III</span><div><h3>Egress is a ceremony</h3><p>The hot path never leaves the machine unwitnessed. Departure is explicit, logged.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">IV</span><div><h3>Voice is the front door</h3><p>Capture must survive a walk with a dog and no signal.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">V</span><div><h3>The human ratifies identity</h3><p>Constitution-core changes need an explicit human verdict. No exceptions.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">VI</span><div><h3>Agents see projections</h3><p>Every grant materializes its own world. There is no raw mode.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">VII</span><div><h3>Audit in-band</h3><p>Every access is an event in the same Ledger it describes.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">VIII</span><div><h3>Deterministic before intelligent</h3><p>Rules do what rules can, at zero token cost. Models are reserved for judgment.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">IX</span><div><h3>Delete-first</h3><p>No abstraction for a second user who will never exist.</p></div></li>
+          <li class="article"><span class="num" aria-hidden="true">X</span><div><h3>Immaculate or nothing</h3><p>120 frames a second, or it does not ship.</p><div class="frame" id="fps-readout">— fps</div></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ── REQUEST ACCESS ────────────────────────────────────────────────── -->
+    <section class="request divider" id="request" data-node="request.access">
+      <div class="shell">
+        <p class="eyebrow eyebrow--accent reveal">Request access · egress is a ceremony</p>
+        <h2 class="request__display reveal" style="--i:1">Firmament is being built for one mind.</h2>
+        <p class="sub reveal" style="--i:2">If you want to watch it happen — or one day hold your own private sky — leave a breath here.</p>
+        <form class="request__form reveal" id="request-form" style="--i:3" novalidate>
+          <div class="request__field">
+            <label for="email">Your email</label>
+            <input type="email" id="email" name="email" inputmode="email" autocomplete="email" placeholder="you@domain" required />
+          </div>
+          <button class="request__btn" type="submit"><span class="node" aria-hidden="true"></span>Request access</button>
+          <svg class="request__seal" id="request-seal" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--accent)" stroke-width="1.4" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
         </form>
-        <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+        <p class="request__status" id="request-status" role="status" aria-live="polite"></p>
+        <p class="request__micro reveal" style="--i:4">n = 1 · building in public · no pricing, no funnel</p>
       </div>
     </section>
 
     <!-- ── FOOTER ────────────────────────────────────────────────────────── -->
-    <footer class="footer">
-      <div class="wrap">
-        <p class="glyph reveal">
-          Firmament — the fixed vault of sky against which everything else moves.
-        </p>
-        <div class="meta reveal">
-          <span>Built for exactly one operator.</span>
-          <span class="dot-sep" aria-hidden="true">·</span>
-          <a href="https://github.com/draphael89/Firmament/blob/main/docs/SPEC.md">Read the spec</a>
-          <span class="dot-sep" aria-hidden="true">·</span>
-          <a href="https://github.com/draphael89/Firmament">Source</a>
-          <span class="dot-sep" aria-hidden="true">·</span>
-          <span>© 2026</span>
+    <footer class="footer" data-node="colophon">
+      <div class="shell shell--wide">
+        <p class="footer__closing reveal">One breath into the phone; by morning it is a star with a history.</p>
+        <div class="footer__tiers reveal" style="--i:1">
+          <span class="led-open"><i></i>open</span>
+          <span class="led-personal"><i></i>personal</span>
+          <span class="led-sanctum"><i></i>sanctum · withheld from agents</span>
+        </div>
+        <div class="footer__row reveal" style="--i:2">
+          <span class="footer__mark">FIRMAMENT</span>
+          <span class="footer__meta">
+            <a href="https://github.com/draphael89/Firmament/blob/main/docs/SPEC.md">Read the spec</a>
+            <span>·</span>
+            <a href="https://github.com/draphael89/Firmament">Source</a>
+            <span>·</span>
+            <span>append-only · © n = 1</span>
+          </span>
         </div>
       </div>
     </footer>
+  </div>
 
-  </main>
-
-  <script src="constellation.js" defer></script>
-
-  <script>
-    /* ── Waitlist config ────────────────────────────────────────────────────
-       Set ONE of these to actually collect signups (see README):
-         endpoint — a Formspree (or similar) POST URL. Submissions are sent here.
-         mailto   — an email address. With no endpoint, submitting opens the
-                    visitor's mail client, pre-filled, addressed here.
-       With neither set, the form validates and confirms but collects nothing. */
-    const WAITLIST = {
-      endpoint: "",
-      mailto: "",
-    };
-
-    (() => {
-      "use strict";
-
-      /* Scroll reveal — split + staggered (see animation-craft). */
-      const staggerParents = document.querySelectorAll("[data-stagger]");
-      staggerParents.forEach((parent) => {
-        Array.from(parent.children).forEach((child, i) => {
-          if (child.classList.contains("reveal")) {
-            child.style.setProperty("--i", i);
-          }
-        });
-      });
-
-      const reveals = document.querySelectorAll(".reveal");
-      if ("IntersectionObserver" in window) {
-        const io = new IntersectionObserver(
-          (entries) => {
-            for (const e of entries) {
-              if (e.isIntersecting) {
-                e.target.classList.add("is-visible");
-                io.unobserve(e.target);
-              }
-            }
-          },
-          { threshold: 0.14, rootMargin: "0px 0px -8% 0px" }
-        );
-        reveals.forEach((el) => io.observe(el));
-      } else {
-        reveals.forEach((el) => el.classList.add("is-visible"));
-      }
-
-      /* Sticky mini-header — appears once the hero is scrolled past. */
-      const topbar = document.getElementById("topbar");
-      const hero = document.getElementById("top");
-      if (topbar && hero && "IntersectionObserver" in window) {
-        const barIO = new IntersectionObserver(
-          ([entry]) => topbar.classList.toggle("is-visible", !entry.isIntersecting),
-          { rootMargin: "-72px 0px 0px 0px" }
-        );
-        barIO.observe(hero);
-      }
-
-      /* Waitlist submission. */
-      const form = document.getElementById("waitlist-form");
-      const status = document.getElementById("form-status");
-      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-      function say(msg, isError) {
-        status.textContent = msg;
-        status.classList.toggle("error", !!isError);
-        status.classList.add("show");
-      }
-
-      if (form) {
-        form.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const input = form.elements.email;
-          const email = (input.value || "").trim();
-          const btn = form.querySelector("button");
-
-          if (!EMAIL_RE.test(email)) {
-            say("That email doesn't look right — mind checking it?", true);
-            input.focus();
-            return;
-          }
-
-          btn.disabled = true;
-
-          try {
-            if (WAITLIST.endpoint) {
-              const res = await fetch(WAITLIST.endpoint, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json" },
-                body: JSON.stringify({ email }),
-              });
-              if (!res.ok) throw new Error("bad response");
-              form.reset();
-              say("You're on the list. I'll be in touch when the sky opens.");
-            } else if (WAITLIST.mailto) {
-              const subject = encodeURIComponent("Firmament — request access");
-              const body = encodeURIComponent(`Please add me to the waitlist: ${email}`);
-              window.location.href = `mailto:${WAITLIST.mailto}?subject=${subject}&body=${body}`;
-              say("Opening your mail client to finish…");
-            } else {
-              // No collector wired yet. Be honest in the console, warm to the visitor.
-              console.warn(
-                "[Firmament] Waitlist isn't wired up — set WAITLIST.endpoint or WAITLIST.mailto in index.html."
-              );
-              form.reset();
-              say("You're on the list. I'll be in touch when the sky opens.");
-            }
-          } catch (err) {
-            say("Something went wrong sending that. Try again in a moment?", true);
-          } finally {
-            btn.disabled = false;
-          }
-        });
-      }
-    })();
-  </script>
+  <script src="sky.js" defer></script>
 </body>
 </html>
