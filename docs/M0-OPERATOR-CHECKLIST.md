@@ -1,7 +1,7 @@
 # M0 Operator Checklist — the five hardware/account legs of the Definition of Done
 
 Everything machine-verifiable in [the M0 plan](plans/2026-07-08-001-feat-firmament-v1-1-plan.md) is green
-(84 package tests, 50/50 crash kills, all app targets building). These five items need the
+(93 package tests, 50/50 crash kills, all app targets building). These five items need the
 operator, physical devices, and Apple account plumbing. Order matters — item 1 unblocks 2–4.
 
 ## Status (2026-07-08)
@@ -19,12 +19,21 @@ the 50-kill crash suite passes in CI.
 | 4 | Two-device sync round-trip (airplane mode) | ✅ offline capture + transcript synced; both chains verify |
 | 5 | One week of daily use | ⬜ in progress |
 
-Five defects surfaced only on hardware or on inspection, and are fixed: the realtime audio-tap
+Six defects surfaced only on hardware or on inspection, and are fixed: the realtime audio-tap
 executor assertion (capture crashed on first buffer), the unretained `CKSyncEngine` delegate
 (sync was a silent no-op — nothing ever uploaded), the iOS ledger living at the App Group root,
 the missing `UIBackgroundModes = [audio]` (the Action Button path could never have recorded
-while backgrounded), and the latency instrumentation anchoring at `start()` rather than at
-process spawn — which would have reported a cold press as fast as a warm one.
+while backgrounded), the latency instrumentation anchoring at `start()` rather than at process
+spawn (a cold press would have reported as fast as a warm one), and — the worst of them —
+launch reconciliation adopting the *live* recording's partial file, which destroyed the very
+capture it then filed as a recovery artifact.
+
+That last one was latent precisely because the Action Button path had never run. It is a race
+between `launchSequence()` and a capture that starts before reconciliation finishes: certain on
+the intent path (`perform()` starts the recorder while the queued `launchSequence()` waits for
+the MainActor), and reachable on the Mac too, where ⌥Space is live during a launch fold and a
+first-run WhisperKit model download. `AudioFileStore` now tracks the temp paths this process is
+writing, and only unowned partials are adoptable.
 
 Open signal for item 2: transcripts of app-UI captures have begun mid-phrase, and one 11-second
 utterance recorded as 9.8 s. That is suggestive of start-of-capture clipping but does not
