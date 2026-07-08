@@ -22,6 +22,7 @@ final class PhoneModel {
     private var activity: Activity<RecordingActivityAttributes>?
 
     init() throws {
+        FirmamentPaths.migrateLegacyGroupRootIfNeeded()
         let container = FirmamentPaths.sharedContainer()
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         let store = try LedgerStore.pool(at: container.appendingPathComponent("ledger.sqlite").path)
