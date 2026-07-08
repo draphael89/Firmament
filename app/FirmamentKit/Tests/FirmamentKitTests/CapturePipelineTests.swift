@@ -104,14 +104,16 @@ struct CapturePipelineTests {
     func partialAdoption() async throws {
         let (pipeline, root) = try makePipeline()
         defer { try? FileManager.default.removeItem(at: root) }
+        // What a killed process leaves behind: partials on disk with no live
+        // writer. (Abandoning a handle *in this process* is not a crash — the
+        // store still knows it is being written. See LiveRecordingAdoptionTests.)
+        let temp = pipeline.audioStore.tempDirectory
         // Empty partial — provably no audio lost, GC.
-        _ = try pipeline.audioStore.beginRecording()
+        FileManager.default.createFile(
+            atPath: temp.appendingPathComponent("\(UUID().uuidString).partial").path, contents: nil)
         // Non-empty partial — interrupted capture, adopt.
-        let partial = try pipeline.audioStore.beginRecording()
         let flushed = Data("frames up to the flush point".utf8)
-        try pipeline.audioStore.append(flushed, to: partial)
-        try pipeline.audioStore.flush(partial)
-        // Neither handle is finalized — simulate crash by abandoning them.
+        try flushed.write(to: temp.appendingPathComponent("\(UUID().uuidString).partial"))
 
         let report = try await Reconciler().run(pipeline: pipeline, deviceID: .mac)
         #expect(report.collectedEmptyTemps == 1)
