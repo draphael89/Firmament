@@ -4,6 +4,29 @@ Everything machine-verifiable in [the M0 plan](plans/2026-07-08-001-feat-firmame
 (84 package tests, 50/50 crash kills, all app targets building). These five items need the
 operator, physical devices, and Apple account plumbing. Order matters — item 1 unblocks 2–4.
 
+## Status (2026-07-08)
+
+**R10, the M0 acceptance criterion, is satisfied on real hardware**: an airplane-mode phone
+capture transcribed on-device, synced to the Mac when connectivity returned, and
+`firmament verify` exits 0 with both chains intact; the Vault renders both devices' notes;
+the 50-kill crash suite passes in CI.
+
+| # | Item | Status |
+|---|---|---|
+| 1 | Apple plumbing | ✅ team YF9662K2Y4, container, App Group, both devices signed and installed |
+| 2 | Action Button latency (locked phone) | ⬜ open — the KTD11 gate |
+| 3 | Mac panel + hotkey | ✅ ⌥Space → panel → capture → real transcription → Vault |
+| 4 | Two-device sync round-trip (airplane mode) | ✅ offline capture + transcript synced; both chains verify |
+| 5 | One week of daily use | ⬜ in progress |
+
+Three defects surfaced only on hardware and are fixed: the realtime audio-tap executor
+assertion (capture crashed on first buffer), the unretained `CKSyncEngine` delegate (sync was
+a silent no-op — nothing ever uploaded), and the iOS ledger living at the App Group root.
+
+Open signal for item 2: transcripts of app-UI captures have begun mid-phrase, and one 11-second
+utterance recorded as 9.8 s. That is suggestive of start-of-capture clipping but does not
+decide KTD11 — the Action Button path is separate and still unmeasured.
+
 ## 1. Apple plumbing (one-time)
 
 - [ ] In the Apple Developer portal: create the app IDs (`com.davidraphael.firmament`,
