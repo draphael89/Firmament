@@ -26,6 +26,11 @@ final class PhoneRecorder {
     /// path it came through — the two have different warm-up costs.
     var launchedFromIntent = false
 
+    /// True when the intent found no `PhoneModel` yet, i.e. iOS spawned the
+    /// process to serve this press. The exact cold/warm signal for KTD11 —
+    /// far better than inferring it from process age.
+    var coldLaunch = false
+
     private var machine = RecorderStateMachine()
     private var engine: AVAudioEngine?
     private var tapWriter: AudioTapWriter?
@@ -138,7 +143,11 @@ final class PhoneRecorder {
         // Record the two halves separately rather than a classified total —
         // facts on the hot path, judgment at read time (Tenet 8).
         context["processAgeAtStartMS"] = String(max(0, startedAtMS - ProcessStart.epochMS))
+        if launchedFromIntent {
+            context["coldLaunch"] = coldLaunch ? "true" : "false"
+        }
         launchedFromIntent = false
+        coldLaunch = false
         status = .idle
         Task {
             do {

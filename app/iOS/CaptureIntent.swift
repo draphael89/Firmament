@@ -17,10 +17,13 @@ struct ToggleCaptureIntent: AudioRecordingIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        // Read before touching `shared`, which constructs it: if the model does
+        // not exist yet, iOS spawned this process to serve the press.
+        let coldLaunch = !PhoneModel.isConstructed
         guard let model = PhoneModel.shared else {
             throw CaptureIntentError.notReady
         }
-        model.toggleCapture(fromIntent: true)
+        model.toggleCapture(fromIntent: true, coldLaunch: coldLaunch)
         return .result()
     }
 }

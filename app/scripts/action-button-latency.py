@@ -10,6 +10,11 @@ That is `processAgeAtStartMS`. `startLatencyMS` covers only audio-session
 activation and engine start. Press-to-first-sample is at least their sum; the
 press-to-spawn gap is not observable from inside the process.
 
+Whether a press is cold is read from the `coldLaunch` flag the intent records
+(it saw no PhoneModel, so iOS spawned the process for the press). Older
+captures without the flag fall back to a process-age threshold, which can
+misjudge a slow warm launch — hence the flag.
+
     usage: app/scripts/action-button-latency.py [device-udid]
 
 Exit 0 within budget, 1 over budget, 2 if the press hasn't happened yet.
@@ -84,16 +89,29 @@ def main() -> int:
         when = r.get("occurredAt", "?")
         engine = int(ctx["startLatencyMS"])
         age = int(ctx.get("processAgeAtStartMS", -1))
-        if age < 0:
-            print(f"  {when}  engine {engine} ms  (pre-fix build — launch cost unmeasured)")
-        elif age <= COLD_CEILING_MS:
+
+        # Prefer the recorded flag; fall back to the age heuristic only for
+        # captures written before the flag existed.
+        flag = ctx.get("coldLaunch")
+        if flag == "true":
+            cold = True
+        elif flag == "false":
+            cold = False
+        elif age < 0:
+            print(f"  {when}  engine {engine} ms  (pre-instrumentation build — launch cost unmeasured)")
+            continue
+        else:
+            cold = age <= COLD_CEILING_MS
+
+        if cold:
             total = age + engine
             worst_cold = total if worst_cold is None else max(worst_cold, total)
+            note = "" if flag else "  (cold by age heuristic)"
             print(f"  {when}  COLD  launch {age} ms + engine {engine} ms "
-                  f"= >={total} ms press-to-first-sample")
+                  f"= >={total} ms press-to-first-sample{note}")
         else:
-            print(f"  {when}  warm  engine {engine} ms "
-                  f"(process was already {age / 1000:.0f}s old)")
+            detail = f"process was already {age / 1000:.0f}s old" if age >= 0 else "warm app"
+            print(f"  {when}  warm  engine {engine} ms ({detail})")
 
     print()
     if worst_cold is None:

@@ -13,6 +13,14 @@ import UIKit
 final class PhoneModel {
     static let shared = try? PhoneModel()
 
+    /// True once the composition root exists. `FirmamentPhoneApp` only touches
+    /// `shared` from inside `WindowGroup`, which no scene evaluates on a
+    /// background intent launch — so an intent that finds this `false` was the
+    /// reason iOS spawned the process. That is the cold-press signal KTD11
+    /// needs, and it beats guessing from how old the process happens to be.
+    private static var didConstruct = false
+    static var isConstructed: Bool { didConstruct }
+
     let pipeline: CapturePipeline
     let transcriptionQueue: TranscriptionQueue
     let syncEngine: SyncEngine
@@ -47,6 +55,7 @@ final class PhoneModel {
         // CKSyncEngine consumes them internally once the app is registered.
         UIApplication.shared.registerForRemoteNotifications()
 
+        Self.didConstruct = true
         Task { await launchSequence() }
     }
 
@@ -82,12 +91,13 @@ final class PhoneModel {
     /// The Action Button entry (KTD11): toggles capture; the Live Activity
     /// is mandatory while an AudioRecordingIntent records and doubles as the
     /// status surface.
-    func toggleCapture(fromIntent: Bool = false) {
+    func toggleCapture(fromIntent: Bool = false, coldLaunch: Bool = false) {
         if recorder.isRecording {
             recorder.stop()
             endLiveActivity()
         } else {
             recorder.launchedFromIntent = fromIntent
+            recorder.coldLaunch = coldLaunch
             recorder.start()
             if case .recording(let startedAtMS) = recorder.status {
                 startLiveActivity(startedAtMS: startedAtMS)
