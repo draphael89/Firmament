@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Firmament — a private brain for one mind</title>
+  <meta name="description" content="Firmament is an identity substrate: capture your mind by voice, compound it into structured knowledge overnight, and serve it to yourself and the agents you trust — as equals. Voice-first. Agent-legible. Mac-native." />
+  <meta name="theme-color" content="#07080d" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Firmament — a private brain for one mind" />
+  <meta property="og:description" content="Speak your mind on a walk. It compounds into structured knowledge overnight — and serves you and the agents you trust, as equals." />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23ffffff'/%3E%3Cstop offset='1' stop-color='%23aeb8ff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='32' height='32' fill='%2307080d'/%3E%3Ccircle cx='16' cy='16' r='13' fill='url(%23g)'/%3E%3Cpath d='M16 5 L17.6 14.4 L27 16 L17.6 17.6 L16 27 L14.4 17.6 L5 16 L14.4 14.4 Z' fill='%23ffffff'/%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- If JS is off, reveal everything immediately (no fade-in to wait on). -->
+  <noscript>
+    <style>
+      .reveal { opacity: 1 !important; transform: none !important; }
+      #sky { display: none; }
+    </style>
+  </noscript>
+</head>
+<body>
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <!-- Sticky mini-header, fades in past the hero -->
+  <header class="topbar" id="topbar">
+    <span class="mark">Firmament</span>
+    <a class="mini-cta" href="#waitlist">Request access</a>
+  </header>
+
+  <main class="page">
+
+    <!-- ── HERO ──────────────────────────────────────────────────────────── -->
+    <section class="hero" id="top">
+      <h1 class="wordmark reveal">FIRMAMENT</h1>
+      <p class="tagline reveal" style="--i: 1">A private brain for one mind.</p>
+      <p class="hero-thesis reveal" style="--i: 2">
+        Speak your mind on a walk. It compounds into structured knowledge
+        overnight — and serves the one human who made it and the agents they
+        trust, as equals.
+      </p>
+      <div class="hero-cta reveal" style="--i: 3">
+        <a class="btn" href="#waitlist">
+          Request access <span class="arrow" aria-hidden="true">→</span>
+        </a>
+        <span class="hero-note">Voice-first · Agent-legible · Mac-native</span>
+      </div>
+      <a class="scroll-cue" href="#thesis" aria-label="Scroll to read more">
+        <span>Enter</span>
+        <span class="chev" aria-hidden="true"></span>
+      </a>
+    </section>
+
+    <!-- ── THESIS ────────────────────────────────────────────────────────── -->
+    <section id="thesis">
+      <div class="wrap column prose" data-stagger>
+        <p class="eyebrow reveal">The thesis</p>
+        <h2 class="reveal">Not a note-taking app. Not a retrieval database. An identity substrate.</h2>
+        <p class="lead reveal">
+          As models grow more capable, the scarce input becomes <em>personal
+          context</em> — your values, your taste, the compressed prior of one
+          specific mind.
+        </p>
+        <p class="reveal">
+          Firmament holds that prior in a portable, governed, injectable form,
+          so every agent that touches it becomes meaningfully more aligned with
+          its operator. It captures raw material — voice notes, text, fragments
+          — and compounds it into a knowledge graph while you sleep. Built for
+          exactly one operator, which means every generalization tax is refused.
+        </p>
+        <p class="reveal">
+          The machine never holds the pen on identity. It drafts, cites, and
+          proposes; <em>you ratify</em>. What you are is human-sovereign by
+          construction.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── TWO SURFACES ──────────────────────────────────────────────────── -->
+    <section id="surfaces">
+      <div class="wrap">
+        <div class="column">
+          <p class="eyebrow reveal">One substrate, two surfaces</p>
+          <h2 class="reveal">Two first-class clients, served as equals.</h2>
+          <p class="prose reveal" style="color: var(--ink-soft)">
+            A human edit and an agent write are the same primitive — an event
+            appended to the Ledger. Neither surface is a translation layer over
+            the other.
+          </p>
+        </div>
+        <div class="surfaces" data-stagger>
+          <article class="card reveal">
+            <div class="surface-glyph" aria-hidden="true">✦</div>
+            <div class="role">For you</div>
+            <h3>The Atlas</h3>
+            <p>
+              A planetarium of your own mind. Every entity is a star — sized by
+              centrality, brightened by recent thought, drifting only as slowly
+              as your mind actually changes. Scrub a year of your own thinking
+              cluster and re-form. Rendered in Metal at 120fps, or not at all.
+            </p>
+          </article>
+          <article class="card reveal">
+            <div class="surface-glyph" aria-hidden="true">◈</div>
+            <div class="role">For your agents</div>
+            <h3>The Gate</h3>
+            <p>
+              A consent-gated MCP surface. Each agent perceives only the
+              projection you grant it — never the raw brain, never the Sanctum.
+              Every access is logged as a light-trail you can watch sweep across
+              the sky. The audit log can't drift from reality, because it is
+              reality.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── THE LOOP ──────────────────────────────────────────────────────── -->
+    <section id="loop">
+      <div class="wrap">
+        <div class="column">
+          <p class="eyebrow reveal">How it works</p>
+          <h2 class="reveal">One breath in. By morning, a star with a history.</h2>
+        </div>
+        <div class="loop" data-stagger>
+          <div class="loop-step reveal">
+            <div class="node"></div>
+            <div class="step-name">Capture</div>
+            <div class="step-sub">Voice, on a walk, offline.</div>
+          </div>
+          <div class="loop-step reveal">
+            <div class="node"></div>
+            <div class="step-name">Ledger</div>
+            <div class="step-sub">Appended, never mutated.</div>
+          </div>
+          <div class="loop-step reveal">
+            <div class="node"></div>
+            <div class="step-name">Dream</div>
+            <div class="step-sub">Nightly consolidation.</div>
+          </div>
+          <div class="loop-step reveal">
+            <div class="node"></div>
+            <div class="step-name">Lens</div>
+            <div class="step-sub">Graph · index · law.</div>
+          </div>
+          <div class="loop-step reveal">
+            <div class="node"></div>
+            <div class="step-name">Sky</div>
+            <div class="step-sub">A living map of you.</div>
+          </div>
+        </div>
+        <p class="loop-caption reveal">
+          Every derived view is disposable — rebuildable, byte-for-byte, from
+          the Ledger alone. Nothing above a memory's tier can ever perceive it.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── THE TENETS ────────────────────────────────────────────────────── -->
+    <section id="tenets">
+      <div class="wrap">
+        <div class="column">
+          <p class="eyebrow reveal">The ten tenets</p>
+          <h2 class="reveal">The laws of the build.</h2>
+        </div>
+        <div class="tenets" data-stagger>
+          <div class="tenet reveal"><span class="num">01</span><span class="body"><strong>Append, never mutate.</strong><span>The Ledger is immutable. Corrections are new events.</span></span></div>
+          <div class="tenet reveal"><span class="num">02</span><span class="body"><strong>Every Lens is disposable.</strong><span>If a view can't be regenerated from truth, it's contraband.</span></span></div>
+          <div class="tenet reveal"><span class="num">03</span><span class="body"><strong>On-device by default.</strong><span>The hot path never leaves the machine. Egress is a ceremony.</span></span></div>
+          <div class="tenet reveal"><span class="num">04</span><span class="body"><strong>Voice is the front door.</strong><span>Capture must survive a walk with no signal.</span></span></div>
+          <div class="tenet reveal"><span class="num">05</span><span class="body"><strong>The human ratifies identity.</strong><span>Core changes need an explicit human verdict. No exceptions.</span></span></div>
+          <div class="tenet reveal"><span class="num">06</span><span class="body"><strong>Agents see projections.</strong><span>Every grant gets its own view. There is no raw mode.</span></span></div>
+          <div class="tenet reveal"><span class="num">07</span><span class="body"><strong>Audit in-band.</strong><span>The log can't drift from reality because it is reality.</span></span></div>
+          <div class="tenet reveal"><span class="num">08</span><span class="body"><strong>Deterministic before intelligent.</strong><span>Rules do what rules can, at zero token cost.</span></span></div>
+          <div class="tenet reveal"><span class="num">09</span><span class="body"><strong>Delete-first.</strong><span>No abstraction for a second user who will never exist.</span></span></div>
+          <div class="tenet reveal"><span class="num">10</span><span class="body"><strong>Immaculate or nothing.</strong><span>A janky sky is worse than no sky.</span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PRIVACY / SANCTUM ─────────────────────────────────────────────── -->
+    <section id="privacy">
+      <div class="wrap">
+        <div class="column prose">
+          <p class="eyebrow reveal">Privacy</p>
+          <h2 class="reveal">Privacy is a property of the data, not a policy of the app.</h2>
+          <p class="reveal" style="color: var(--ink-soft)">
+            Sensitivity is stamped at capture and enforced when views are folded
+            — not by a prompt that can be talked around. The highest tier isn't
+            hidden from agents; it's structurally absent from the universe they
+            can see.
+          </p>
+        </div>
+        <div class="wrap column" style="padding-inline: 0">
+          <div class="sanctum-tiers" data-stagger>
+            <div class="tier-row reveal">
+              <span class="dot open" aria-hidden="true"></span>
+              <span>
+                <span class="tier-name">Open</span> —
+                <span class="tier-desc">safe for any granted agent; eligible to escalate off-device.</span>
+              </span>
+            </div>
+            <div class="tier-row reveal">
+              <span class="dot personal" aria-hidden="true"></span>
+              <span>
+                <span class="tier-name">Personal</span> —
+                <span class="tier-desc">the default; visible to high-resolution grants, egress only with per-request approval.</span>
+              </span>
+            </div>
+            <div class="tier-row reveal">
+              <span class="dot sanctum" aria-hidden="true"></span>
+              <span>
+                <span class="tier-name is-sanctum">Sanctum</span> —
+                <span class="tier-desc">never enters any projection, any escalation, any agent's universe. The panic switch is one shredded key away.</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── WAITLIST ──────────────────────────────────────────────────────── -->
+    <section id="waitlist" class="waitlist">
+      <div class="wrap column" data-stagger>
+        <p class="eyebrow reveal">Request access</p>
+        <h2 class="reveal">The sky is being built.</h2>
+        <p class="prose reveal" style="color: var(--ink-soft)">
+          Firmament is a personal tool, made for one mind. If it resonates,
+          leave your email — you'll hear when there's something to see.
+        </p>
+        <form class="form reveal" id="waitlist-form" novalidate>
+          <input
+            type="email"
+            name="email"
+            inputmode="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+            aria-label="Email address"
+            required
+          />
+          <button class="btn" type="submit">Join the waitlist</button>
+        </form>
+        <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- ── FOOTER ────────────────────────────────────────────────────────── -->
+    <footer class="footer">
+      <div class="wrap">
+        <p class="glyph reveal">
+          Firmament — the fixed vault of sky against which everything else moves.
+        </p>
+        <div class="meta reveal">
+          <span>Built for exactly one operator.</span>
+          <span class="dot-sep" aria-hidden="true">·</span>
+          <a href="https://github.com/draphael89/Firmament/blob/main/docs/SPEC.md">Read the spec</a>
+          <span class="dot-sep" aria-hidden="true">·</span>
+          <a href="https://github.com/draphael89/Firmament">Source</a>
+          <span class="dot-sep" aria-hidden="true">·</span>
+          <span>© 2026</span>
+        </div>
+      </div>
+    </footer>
+
+  </main>
+
+  <script src="constellation.js" defer></script>
+
+  <script>
+    /* ── Waitlist config ────────────────────────────────────────────────────
+       Set ONE of these to actually collect signups (see README):
+         endpoint — a Formspree (or similar) POST URL. Submissions are sent here.
+         mailto   — an email address. With no endpoint, submitting opens the
+                    visitor's mail client, pre-filled, addressed here.
+       With neither set, the form validates and confirms but collects nothing. */
+    const WAITLIST = {
+      endpoint: "",
+      mailto: "",
+    };
+
+    (() => {
+      "use strict";
+
+      /* Scroll reveal — split + staggered (see animation-craft). */
+      const staggerParents = document.querySelectorAll("[data-stagger]");
+      staggerParents.forEach((parent) => {
+        Array.from(parent.children).forEach((child, i) => {
+          if (child.classList.contains("reveal")) {
+            child.style.setProperty("--i", i);
+          }
+        });
+      });
+
+      const reveals = document.querySelectorAll(".reveal");
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (e.isIntersecting) {
+                e.target.classList.add("is-visible");
+                io.unobserve(e.target);
+              }
+            }
+          },
+          { threshold: 0.14, rootMargin: "0px 0px -8% 0px" }
+        );
+        reveals.forEach((el) => io.observe(el));
+      } else {
+        reveals.forEach((el) => el.classList.add("is-visible"));
+      }
+
+      /* Sticky mini-header — appears once the hero is scrolled past. */
+      const topbar = document.getElementById("topbar");
+      const hero = document.getElementById("top");
+      if (topbar && hero && "IntersectionObserver" in window) {
+        const barIO = new IntersectionObserver(
+          ([entry]) => topbar.classList.toggle("is-visible", !entry.isIntersecting),
+          { rootMargin: "-72px 0px 0px 0px" }
+        );
+        barIO.observe(hero);
+      }
+
+      /* Waitlist submission. */
+      const form = document.getElementById("waitlist-form");
+      const status = document.getElementById("form-status");
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      function say(msg, isError) {
+        status.textContent = msg;
+        status.classList.toggle("error", !!isError);
+        status.classList.add("show");
+      }
+
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const input = form.elements.email;
+          const email = (input.value || "").trim();
+          const btn = form.querySelector("button");
+
+          if (!EMAIL_RE.test(email)) {
+            say("That email doesn't look right — mind checking it?", true);
+            input.focus();
+            return;
+          }
+
+          btn.disabled = true;
+
+          try {
+            if (WAITLIST.endpoint) {
+              const res = await fetch(WAITLIST.endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({ email }),
+              });
+              if (!res.ok) throw new Error("bad response");
+              form.reset();
+              say("You're on the list. I'll be in touch when the sky opens.");
+            } else if (WAITLIST.mailto) {
+              const subject = encodeURIComponent("Firmament — request access");
+              const body = encodeURIComponent(`Please add me to the waitlist: ${email}`);
+              window.location.href = `mailto:${WAITLIST.mailto}?subject=${subject}&body=${body}`;
+              say("Opening your mail client to finish…");
+            } else {
+              // No collector wired yet. Be honest in the console, warm to the visitor.
+              console.warn(
+                "[Firmament] Waitlist isn't wired up — set WAITLIST.endpoint or WAITLIST.mailto in index.html."
+              );
+              form.reset();
+              say("You're on the list. I'll be in touch when the sky opens.");
+            }
+          } catch (err) {
+            say("Something went wrong sending that. Try again in a moment?", true);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

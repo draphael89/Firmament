@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Node (only if the site later grows a toolchain)
+node_modules/
+dist/
+.cache/
+
+# Xcode / Swift (the app/ target lands here later)
+build/
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+.swiftpm/
+Package.resolved
+
+# Secrets — never commit the waitlist endpoint or keys
+.env
+.env.local
