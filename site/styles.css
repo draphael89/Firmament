@@ -245,6 +245,11 @@ h2 em { font-style: italic; }
 }
 .nav__cta:hover { border-color: var(--accent); background: rgba(169, 180, 255, 0.06); color: var(--accent-hi) !important; }
 @media (max-width: 760px) { .nav__links a:not(.nav__cta) { display: none; } }
+@media (max-width: 460px) {
+  .nav { padding-inline: 16px; }
+  .nav__mark { letter-spacing: 0.22em; text-indent: 0.22em; font-size: 12px; }
+  .nav__cta { padding: 8px 12px; }
+}
 
 /* ── Hero — THE BREATH ─────────────────────────────────────────────────────── */
 .hero { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding-block: 108px 132px; }
