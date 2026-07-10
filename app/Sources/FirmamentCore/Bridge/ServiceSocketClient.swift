@@ -85,6 +85,7 @@ public final class ServiceSocketClient: @unchecked Sendable {
             }
             var chunk = [UInt8](repeating: 0, count: 65536)
             let count = read(fd, &chunk, chunk.count)
+            if count < 0 && errno == EINTR { continue }
             guard count > 0 else {
                 disconnect()
                 throw ServiceClientError.unavailable("service connection closed")

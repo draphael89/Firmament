@@ -128,7 +128,6 @@ public actor CodexAppServerProvider: ReasoningProvider {
             readHandle: stdout.fileHandleForReading,
             writeHandle: stdin.fileHandleForWriting)
         self.process = process
-        self.connection = conn
         startPump(conn)
 
         // Drain stderr or the pipe buffer fills and stalls the server.
@@ -148,9 +147,13 @@ public actor CodexAppServerProvider: ReasoningProvider {
             ]))
             try await conn.notify("initialized")
         } catch {
+            await conn.close()
             await teardown()
             throw ReasoningError.providerUnavailable("initialize failed: \(error)")
         }
+        // Published only after the handshake: a second complete() during
+        // startup must not race thread/start ahead of initialize.
+        self.connection = conn
         return conn
     }
 
@@ -170,14 +173,18 @@ public actor CodexAppServerProvider: ReasoningProvider {
         switch notification.method {
         case "item/completed":
             guard let item = notification.params["item"],
-                  item["type"]?.stringValue == "agentMessage",
+                  let type = item["type"]?.stringValue,
+                  type == "agentMessage" || type == "agent_message",
                   let threadID = notification.params["threadId"]?.stringValue
                     ?? item["threadId"]?.stringValue,
                   let text = item["text"]?.stringValue else { return }
             agentText[threadID] = text
         case "turn/completed", "turn/failed":
-            guard let turn = notification.params["turn"],
-                  let turnID = turn["id"]?.stringValue else { return }
+            // Hedge both wire shapes (nested turn.id / flat turnId) — the
+            // experimental protocol has shipped both.
+            let turn = notification.params["turn"] ?? .object([:])
+            guard let turnID = turn["id"]?.stringValue
+                ?? notification.params["turnId"]?.stringValue else { return }
             // JSON "error": null decodes to .null, which is a non-nil
             // JSONValue — normalize it away before judging failure.
             let error = turn["error"].flatMap { $0 == .null ? nil : $0 }
@@ -209,7 +216,12 @@ public actor CodexAppServerProvider: ReasoningProvider {
                 errorMessage: "turn timed out after \(turnTimeout)",
                 errorInfo: "timeout"))
         }
-        defer { timeoutTask.cancel() }
+        defer {
+            timeoutTask.cancel()
+            // If timeout and completion raced, the loser parked an outcome
+            // for a turn nobody will await again — don't leak it.
+            earlyOutcomes.removeValue(forKey: id)
+        }
         return await withCheckedContinuation { continuation in
             if let early = earlyOutcomes.removeValue(forKey: id) {
                 continuation.resume(returning: early)
