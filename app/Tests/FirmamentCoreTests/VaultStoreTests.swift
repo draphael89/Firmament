@@ -1,6 +1,7 @@
 import Foundation
 import GRDB
 import Testing
+import Darwin
 @testable import FirmamentCore
 
 /// Fresh vault in a unique temp directory per test.
@@ -330,29 +331,37 @@ struct VaultStoreTests {
 
     @Test("Orphaned objects are swept at open; duplicate import self-heals bytes")
     func orphanRecovery() throws {
-        let (vault, dir) = try makeVault()
-        let source = try makeSource(vault)
-        let data = Data("real entry bytes".utf8)
-        let hash = ContentStore.hash(of: data)
-        guard case .created = try vault.importEntry(
-            sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
-        else { Issue.record("expected creation"); return }
+        func makeClosedVaultWithOrphan() throws -> (
+            dir: URL, sourceID: String, data: Data, hash: String, orphan: String
+        ) {
+            let (vault, dir) = try makeVault()
+            let source = try makeSource(vault)
+            let data = Data("real entry bytes".utf8)
+            let hash = ContentStore.hash(of: data)
+            guard case .created = try vault.importEntry(
+                sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
+            else { throw VaultError.entryNotFound("expected creation") }
 
-        // Simulate a crash-leaked orphan: bytes on disk, no referencing row.
-        let orphan = try vault.contentStore.put(Data("crash leftover".utf8))
-        #expect(vault.contentStore.contains(orphan))
+            // Simulate a crash-leaked orphan: bytes on disk, no referencing row.
+            let orphan = try vault.contentStore.put(Data("crash leftover".utf8))
+            #expect(vault.contentStore.contains(orphan))
+            return (dir, source.id, data, hash, orphan)
+        }
+
+        let state = try makeClosedVaultWithOrphan()
 
         // Reopen: sweep reclaims the orphan, keeps the referenced object.
-        let reopened = try VaultStore(directoryURL: dir)
-        #expect(!reopened.contentStore.contains(orphan))
-        #expect(reopened.contentStore.contains(hash))
+        let reopened = try VaultStore(directoryURL: state.dir)
+        #expect(reopened.contentStore.contains(state.orphan) == false)
+        #expect(reopened.contentStore.contains(state.hash))
 
         // Self-heal: bytes vanish out-of-band, duplicate import restores them.
-        try reopened.contentStore.delete(hash)
+        try reopened.contentStore.delete(state.hash)
         let result = try reopened.importEntry(
-            sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
+            sourceID: state.sourceID, facet: .selfFacet,
+            data: state.data, mime: "text/plain")
         guard case .duplicate = result else { Issue.record("expected duplicate"); return }
-        #expect(reopened.contentStore.contains(hash))
+        #expect(reopened.contentStore.contains(state.hash))
     }
 
     @Test("Job enqueue dedupes on idempotency key")
@@ -419,6 +428,60 @@ struct VaultStoreTests {
             _ = try reader.importEntry(
                 sourceID: source.id, facet: .selfFacet,
                 data: Data("should fail".utf8), mime: "text/plain")
+        }
+    }
+
+    @Test("A writable vault owns an exclusive lock for its lifetime")
+    func writerOwnershipIsExclusive() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("firmament-writer-lock-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let lockURL = dir.appendingPathComponent("service.lock")
+        #expect(FileManager.default.createFile(
+            atPath: lockURL.path, contents: nil,
+            attributes: [.posixPermissions: 0o666]))
+
+        var writer: VaultStore? = try VaultStore(directoryURL: dir)
+        #expect(writer?.isReadOnly == false)
+        let permissions = try FileManager.default
+            .attributesOfItem(atPath: lockURL.path)[.posixPermissions] as? NSNumber
+        #expect(permissions?.intValue == 0o600)
+
+        try withExtendedLifetime(writer) {
+            let reader = try VaultStore(directoryURL: dir, readOnly: true)
+            #expect(reader.isReadOnly)
+
+            do {
+                _ = try VaultStore(directoryURL: dir)
+                Issue.record("Expected a second writable store to be rejected")
+            } catch VaultError.writerAlreadyOpen {
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+        }
+
+        writer = nil
+        #expect(FileManager.default.fileExists(atPath: lockURL.path))
+        #expect(throws: Never.self) {
+            _ = try VaultStore(directoryURL: dir)
+        }
+    }
+
+    @Test("Writer lock I/O errors are distinct from lock contention")
+    func writerLockIOFailure() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("firmament-writer-lock-io-tests-\(UUID().uuidString)")
+        let lockURL = dir.appendingPathComponent("service.lock")
+        try FileManager.default.createDirectory(at: lockURL, withIntermediateDirectories: true)
+
+        do {
+            _ = try VaultStore(directoryURL: dir)
+            Issue.record("Expected opening a directory as the lock file to fail")
+        } catch VaultError.writerLockFailed(let path, let code) {
+            #expect(path == lockURL.path)
+            #expect(code == EISDIR)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 

@@ -55,6 +55,13 @@ private let abstainingExtraction = """
      "question": {"abstain": true, "text": null, "rationale": null, "evidence": []}}
     """
 
+private let inconsistentQuestionExtraction = """
+    {"title": "Inconsistent question", "summary": "The model contradicted itself.",
+     "people": [], "projects": [], "topics": [],
+     "decisions": [], "open_loops": [],
+     "question": {"abstain": false, "text": null, "rationale": null, "evidence": []}}
+    """
+
 // MARK: - JobRunner
 
 @Suite("Job runner")
@@ -222,11 +229,62 @@ struct ExtractionPipelineTests {
                       entryID: entryID,
                       payload: try JSONEncoder().encode(["revisionID": revisionID]))
         try await pipeline.run(job)
+        #expect(try await vault.pool.read { try Question.fetchCount($0) } == 1)
         try await pipeline.run(job)
 
         let questions = try await vault.pool.read { try Question.fetchAll($0) }
         #expect(questions.count == 1)
         #expect(questions.first?.text == "Who taught you craft?")
+    }
+
+    @Test("Reprocessing to abstention removes the prior open question")
+    func reprocessAbstains() async throws {
+        let vault = try makeVault()
+        let (entryID, revisionID) = try makeEntry(
+            vault, text: "quality is the whole point of the craft")
+        let provider = FakeProvider(script: [
+            .success(goodExtraction), .success(abstainingExtraction),
+        ])
+        let pipeline = ExtractionPipeline(vault: vault, provider: provider)
+        let job = Job(
+            kind: ExtractionPipeline.jobKind, idempotencyKey: "direct",
+            entryID: entryID,
+            payload: try JSONEncoder().encode(["revisionID": revisionID]))
+
+        try await pipeline.run(job)
+        #expect(try await vault.pool.read { try Question.fetchCount($0) } == 1)
+        try await pipeline.run(job)
+
+        let questions = try await vault.pool.read { try Question.fetchAll($0) }
+        #expect(questions.isEmpty)
+    }
+
+    @Test("A non-abstaining result without question text preserves the prior question")
+    func inconsistentQuestionPreservesPrior() async throws {
+        let vault = try makeVault()
+        let (entryID, revisionID) = try makeEntry(
+            vault, text: "quality is the whole point of the craft")
+        let provider = FakeProvider(script: [
+            .success(goodExtraction), .success(inconsistentQuestionExtraction),
+        ])
+        let pipeline = ExtractionPipeline(vault: vault, provider: provider)
+        let job = Job(
+            kind: ExtractionPipeline.jobKind, idempotencyKey: "direct",
+            entryID: entryID,
+            payload: try JSONEncoder().encode(["revisionID": revisionID]))
+
+        try await pipeline.run(job)
+        await #expect(throws: ReasoningError.self) {
+            try await pipeline.run(job)
+        }
+
+        let (questions, runs) = try await vault.pool.read { db in
+            (try Question.fetchAll(db), try AnalysisRun.fetchAll(db))
+        }
+        #expect(questions.count == 1)
+        #expect(questions.first?.text == "What does finished mean to you?")
+        #expect(runs.filter { $0.status == .succeeded }.count == 1)
+        #expect(runs.filter { $0.status == .failed }.count == 1)
     }
 
     @Test("Unparseable model output records a failed run and throws")

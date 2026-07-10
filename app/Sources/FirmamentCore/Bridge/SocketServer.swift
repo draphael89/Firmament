@@ -11,7 +11,10 @@ public final class SocketServer: Sendable {
     public init(path: String, handler: BridgeRPCHandler) throws {
         self.handler = handler
         self.path = path
-        unlink(path)
+        if unlink(path) != 0 {
+            let code = errno
+            guard code == ENOENT else { throw SocketError.unlink(code) }
+        }
 
         listenFD = socket(AF_UNIX, SOCK_STREAM, 0)
         guard listenFD >= 0 else { throw SocketError.create(errno) }
@@ -116,5 +119,5 @@ public final class SocketServer: Sendable {
 }
 
 public enum SocketError: Error {
-    case create(Int32), bind(Int32), listen(Int32), pathTooLong
+    case create(Int32), bind(Int32), listen(Int32), unlink(Int32), pathTooLong
 }

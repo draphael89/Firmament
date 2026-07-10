@@ -19,7 +19,8 @@ Plan of record: [`../docs/plans/2026-07-09-firmament-plan.md`](../docs/plans/202
 Vault home: `~/Library/Application Support/Firmament` (override:
 `FIRMAMENT_HOME`). Inside it: `vault.sqlite`, `objects/`, `inbox/`,
 `agent-inbox/{claude_code,codex}/`, `identity.md` (operator-curated, served
-under the `curated` trust label), optional `granola.key`.
+under the `curated` trust label), persistent `service.lock`, and optional
+`granola.key`.
 
 ## Run
 
@@ -32,13 +33,20 @@ swift build
 
 ## Hook up the agents
 
-**Claude Code** (`~/.claude/settings.json` or project `.mcp.json`):
+**Claude Code MCP** (`~/.claude.json` or project `.mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "firmament": { "command": "/path/to/.build/debug/firmament-mcp" }
-  },
+  }
+}
+```
+
+**Claude Code SessionEnd hook** (`~/.claude/settings.json`):
+
+```json
+{
   "hooks": {
     "SessionEnd": [{ "hooks": [{ "type": "command",
       "command": "/path/to/integrations/claude-code/firmament-capture.sh" }] }]
@@ -64,6 +72,8 @@ rename; text imports immediately, audio awaits the transcription stage.
 
 ## Invariants worth knowing
 
+- **One writable owner per vault**: a nonblocking advisory lock makes a second
+  writer fail fast; read-only WAL connections remain concurrent.
 - **Raw truth is immutable per revision**; all derived data is reprocessable.
 - **Delete Now is provable**: one transaction purges rows, jobs, and FTS;
   content objects are unlinked when unreferenced; an open-time sweep reclaims
@@ -81,5 +91,5 @@ rename; text imports immediately, audio awaits the transcription stage.
 ## Tests
 
 ```sh
-cd app && swift test   # 47 tests: storage, purge, jobs, pipeline, bridge, connectors
+cd app && swift test   # 56 tests: storage, purge, jobs, pipeline, bridge, connectors
 ```

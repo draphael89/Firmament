@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import Darwin
 @testable import FirmamentCore
 
 private func makeHandler() throws -> (BridgeRPCHandler, VaultStore) {
@@ -153,5 +154,23 @@ struct RPCTests {
             to: #"{"jsonrpc":"2.0","id":8,"method":"nope"}"#, handler: handler)
         #expect(unknown["id"] == .number(8))
         #expect(unknown["error"] != nil)
+    }
+
+    @Test("Socket startup surfaces stale-path removal failures")
+    func socketUnlinkFailure() throws {
+        let (handler, _) = try makeHandler()
+        let occupiedPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("firmament-socket-directory-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: occupiedPath, withIntermediateDirectories: true)
+
+        do {
+            _ = try SocketServer(path: occupiedPath.path, handler: handler)
+            Issue.record("Expected socket-path removal to fail")
+        } catch SocketError.unlink(let code) {
+            #expect(code == EPERM)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 }
