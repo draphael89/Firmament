@@ -256,10 +256,11 @@ latency and tokens.
 ## 8. Build sequence
 
 **Gate 0 — Feasibility (days, this week).** Six spikes, each with a pass/fail:
-1. ~~Codex-under-subscription structured call~~ — **partially closed today** (CLI +
-   auth + daemon verified; extraction quality demonstrated on real input, §9).
-   Remaining: drive `app-server` programmatically from a Swift helper — threads,
-   schema-constrained output, auth persistence across restarts.
+1. Codex-under-subscription structured call — **production success path complete
+   (2026-07-10)**. The Swift `CodexAppServerProvider` completed a real
+   `gpt-5.6-terra` / `extract-v1` turn under subscription auth; a disposable vault
+   persisted its succeeded analysis, linked projection, and FTS row across a
+   certified service restart. This closes Spike 1's production path only.
 2. Transcript-analysis quality at the workhorse tier — **first-sample pass today**
    (§9); closes only after a battery of routine, sparse, multi-speaker, and
    adversarial inputs shows grounded output and correct abstention. Escalate
@@ -328,11 +329,13 @@ The planning voice note itself was processed live by GPT-5.6 Terra @ xhigh
   angel"), with a rationale that correctly identifies it probes the person behind the
   product mechanics rather than the mechanics.
 
-**Architect's judgment: pass.** Non-generic, evidence-grounded, person-directed —
+**Architect's judgment: first-sample pass.** Non-generic, evidence-grounded,
+person-directed —
 clearly beats a "tell me more" baseline. Caveats: single sample, vault of one entry
 (the vault-context ranking step wasn't exercised), and the entry was unusually rich —
-the abstention path still needs testing on routine content. Gate 0 spike #2 closes;
-question quality stays monitored at Gate 3's blind test.
+the abstention path still needs testing on routine content. Spike #2 remains open
+until the §8 battery passes; question quality also remains monitored at Gate 3's
+blind test.
 
 ## 10. Decisions
 

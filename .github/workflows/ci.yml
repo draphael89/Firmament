@@ -9,8 +9,8 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
 
 jobs:
-  package:
-    name: Package tests (fast tier)
+  vault:
+    name: Vault package build + tests
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -22,28 +22,18 @@ jobs:
           fi
       - name: Swift version
         run: swift --version
-      - name: Test FirmamentKit + CLI
-        run: swift test --package-path app/FirmamentKit
-      - name: Crash suite (R10 — 50 randomized kill -9s)
-        run: app/scripts/crash-harness.sh 50
-
-  apps:
-    name: App builds (slow tier)
-    if: github.event_name == 'pull_request'
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-      - name: Pin Xcode
+      - name: Build vault products
         run: |
-          if [ ! -d "$DEVELOPER_DIR" ]; then
-            echo "Pinned Xcode missing; falling back to default" >&2
-            echo "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" >> "$GITHUB_ENV"
-          fi
-      - name: Build macOS app
-        run: |
-          xcodebuild build -project app/Firmament.xcodeproj -scheme Firmament \
-            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet
-      - name: Build iOS app + widget extension
-        run: |
-          xcodebuild build -project app/Firmament.xcodeproj -scheme "Firmament iOS" \
-            -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO -quiet
+          swift build --package-path app
+          BIN_PATH="$(swift build --package-path app --show-bin-path)"
+          test -x "$BIN_PATH/firmament-service"
+          test -x "$BIN_PATH/firmament-mcp"
+          test -x "$BIN_PATH/firmament-app"
+      - name: Test vault package
+        env:
+          # SwiftPM's --no-parallel does not serialize Swift Testing tests.
+          # These tests deliberately exercise process-global file descriptors.
+          SWT_EXPERIMENTAL_MAXIMUM_PARALLELIZATION_WIDTH: "1"
+        run: swift test --package-path app
+      - name: Verify dependency lock is stable
+        run: git diff --exit-code -- app/Package.resolved

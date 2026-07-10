@@ -1,8 +1,8 @@
 # Gate 0 — Feasibility Spike Report
 
-Plan: `docs/plans/2026-07-09-firmament-plan.md` §8. Status as of 2026-07-09 21:10 EDT.
+Plan: `docs/plans/2026-07-09-firmament-plan.md` §8. Status as of 2026-07-10.
 
-## Spike 1 — Programmatic `codex app-server` under subscription auth: **PASS (protocol)**
+## Spike 1 — Programmatic `codex app-server` under subscription auth: **PASS (production success path)**
 
 `spikes/appserver_spike.py` drives `codex app-server` headlessly over stdio
 JSON-RPC (no TTY, no user in the loop), under ChatGPT-subscription auth:
@@ -40,9 +40,36 @@ now accepts both shapes), `turn/start`, and turn-failure notifications all
 validated on the wire. The observed failure was `usageLimitExceeded`
 (quota contention with the concurrent review run), which the stack handled
 exactly as designed: structured parse → `ReasoningError.usageLimitExceeded`
-→ job parked with attempts unchanged. **Still pending**: the success path
-(`item/completed` agentMessage shape) — scheduled for the next quota window;
-until then a shape mismatch degrades to timeout→park, never terminal.
+→ job parked with attempts unchanged. At that point, the success path
+(`item/completed` agent-message shape) remained pending.
+
+### Closeout — 2026-07-10, production success
+
+The first disposable certification run exposed a live contract defect before
+inference: the structured-output API rejected the nested `question` schema because
+not every declared property was listed in `required`. The run stopped after that
+single failed attempt. The schema was corrected, nullable fields remained nullable,
+and a focused regression now enforces strict-schema completeness.
+
+A fresh synthetic `FIRMAMENT_HOME` was then created with mode `0700`; the service's
+logged vault path was checked before the fixture was created, and the production
+Application Support vault remained unchanged. The successful lifecycle proved:
+
+- a second writable service was rejected while MCP health on the first remained
+  healthy;
+- a non-local synthetic entry reached `done` with attempts `0` and no error;
+- a `gpt-5.6-terra` / `extract-v1` succeeded analysis, linked projection, and FTS row
+  persisted;
+- the model returned `abstain: false`, and exactly one matching open question was
+  stored;
+- after the provider child ran, terminating the exact service and restarting against
+  the same disposable home reacquired the persistent lock and replaced the stale
+  socket; the provider root was still alive at the release boundary, proving the lock
+  descriptor was close-on-exec.
+
+The disposable home and its exact provider process tree were removed after proof.
+This completes Spike 1's production success path only. Spike 2's extraction battery
+and Spikes 3–6 remain open.
 
 ## Spike 2 — Extraction quality at workhorse tier: **first-sample PASS**
 
@@ -74,3 +101,34 @@ Architecture proceeds on the app-server provider design. The core's
 `ReasoningProvider` gets: async turn tracking, structured failure taxonomy
 (including `usageLimitExceeded` → durable job retry after reset), and
 generated protocol types.
+
+## Post-merge stabilization — 2026-07-10
+
+Merged [PR #2](https://github.com/draphael89/Firmament/pull/2) is now the active
+SwiftPM vault/guardian product. PR #1's incompatible FirmamentKit, Xcode, macOS/iOS,
+scripts, and superseded planning artifacts were removed from the current tree while
+remaining available through Git history at `f4ffdef`.
+
+- CI builds all three SwiftPM executables and runs the complete package suite from
+  `app/`; `app/Package.resolved` is committed and checked for drift.
+- Writable vaults acquire a persistent mode-`0600`, close-on-exec `service.lock`
+  before storage opens; read-only vaults remain concurrent.
+- Socket startup distinguishes absent stale paths from unlink failures and releases
+  descriptors on every failed initialization path.
+- The first GitHub package run exposed a test-process lifecycle hang after all
+  JSON-RPC tests completed: peer pipe ends were left open, and connection teardown
+  did not release its write side. The connection now owns write-side closure, its
+  reader closes only after `AsyncBytes` unwinds, and the tests drive peer EOF and
+  close every fixture handle. CI also serializes Swift Testing itself (SwiftPM's
+  default `--no-parallel` does not do so) because these regressions deliberately
+  inspect process-global file descriptors.
+- Successful extraction reprocessing atomically retires the prior open question,
+  including on abstention; malformed non-abstaining output preserves the old question.
+- All three executables build, and `swift test --package-path app` passes **58 tests
+  across 9 suites**. `actionlint`, capture-hook `bash -n`, `git diff --check`,
+  final-tree reference checks, and the site-diff check pass. `site/**` remains
+  byte-identical to merge `ecbbf1ff`.
+
+This stabilization closes neither the Spike 2 extraction battery nor the remaining
+Gate 0 spikes, and it does not install dogfood configuration, hooks, identity data,
+connectors, or a LaunchAgent.

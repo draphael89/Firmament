@@ -24,7 +24,7 @@ DerivedData/
 xcuserdata/
 *.xcworkspace/xcuserdata/
 .swiftpm/
-# Package.resolved is committed on purpose — dependency pins are part of the plan (KTD5)
+# Package.resolved is committed so Swift package builds remain reproducible.
 
 # Secrets — never commit the waitlist endpoint or keys
 .env

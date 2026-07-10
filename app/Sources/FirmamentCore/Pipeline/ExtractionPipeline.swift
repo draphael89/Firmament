@@ -129,6 +129,19 @@ public struct ExtractionPipeline: Sendable {
             throw ReasoningError.invalidOutput("extraction output failed to decode")
         }
 
+        let questionText: String?
+        if extraction.question.abstain {
+            questionText = nil
+        } else if let text = extraction.question.text,
+                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            questionText = text
+        } else {
+            let message = "non-abstaining question is missing text"
+            try recordFailedRun(
+                revisionID: revisionID, error: message, startedAt: startedAt)
+            throw ReasoningError.invalidOutput(message)
+        }
+
         try await vault.pool.write { db in
             // The entry may have been purged while the provider was
             // thinking; a legitimate Delete Now wins over the analysis.
@@ -154,13 +167,13 @@ public struct ExtractionPipeline: Sendable {
                 db, entryID: entry.id, title: extraction.title,
                 summary: extraction.summary, body: text)
 
-            if !extraction.question.abstain, let questionText = extraction.question.text {
-                // One open question per entry: a reprocessed revision
-                // replaces its predecessor instead of stacking duplicates.
-                try Question
-                    .filter(Column("entryID") == entry.id)
-                    .filter(Column("status") == QuestionStatus.open)
-                    .deleteAll(db)
+            // One open question per entry: every successful reprocess retires
+            // its predecessor, including when the new result abstains.
+            try Question
+                .filter(Column("entryID") == entry.id)
+                .filter(Column("status") == QuestionStatus.open)
+                .deleteAll(db)
+            if let questionText {
                 try Question(
                     entryID: entry.id, text: questionText,
                     rationale: extraction.question.rationale,
@@ -225,7 +238,7 @@ public struct ExtractionPipeline: Sendable {
                 "rationale": {"type": ["string", "null"]},
                 "evidence": {"type": "array", "items": {"type": "string"}}
               },
-              "required": ["abstain"],
+              "required": ["abstain", "text", "rationale", "evidence"],
               "additionalProperties": false
             }
           },

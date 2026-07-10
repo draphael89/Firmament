@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import Darwin
 
 public enum ImportResult: Equatable, Sendable {
     case created(entryID: String, revisionID: String)
@@ -17,6 +18,48 @@ public struct PurgeReport: Codable, Equatable, Sendable {
     public var assertionsRetracted: Int
 }
 
+private final class WriterLock: Sendable {
+    private let descriptor: Int32
+
+    init(directoryURL: URL) throws {
+        let path = directoryURL.appendingPathComponent("service.lock").path
+        let mode = mode_t(S_IRUSR | S_IWUSR)
+        let descriptor: Int32
+        while true {
+            let candidate = Darwin.open(path, O_RDWR | O_CREAT | O_CLOEXEC, mode)
+            if candidate >= 0 {
+                descriptor = candidate
+                break
+            }
+            let code = errno
+            if code == EINTR { continue }
+            throw VaultError.writerLockFailed(path: path, code: code)
+        }
+
+        guard fchmod(descriptor, mode) == 0 else {
+            let code = errno
+            Darwin.close(descriptor)
+            throw VaultError.writerLockFailed(path: path, code: code)
+        }
+
+        while true {
+            if flock(descriptor, LOCK_EX | LOCK_NB) == 0 { break }
+            let code = errno
+            if code == EINTR { continue }
+            Darwin.close(descriptor)
+            if code == EWOULDBLOCK {
+                throw VaultError.writerAlreadyOpen
+            }
+            throw VaultError.writerLockFailed(path: path, code: code)
+        }
+        self.descriptor = descriptor
+    }
+
+    deinit {
+        Darwin.close(descriptor)
+    }
+}
+
 /// The vault: sole owner of the SQLite database and content store. The pool
 /// and content store are internal — outside this module, VaultStore's methods
 /// are the only read/write path, which is what makes the egress and deletion
@@ -24,6 +67,8 @@ public struct PurgeReport: Codable, Equatable, Sendable {
 public final class VaultStore: Sendable {
     let pool: DatabasePool
     let contentStore: ContentStore
+    // Stored after the writable resources so its descriptor closes last.
+    private let writerLock: WriterLock?
 
     public let isReadOnly: Bool
 
@@ -33,17 +78,20 @@ public final class VaultStore: Sendable {
     /// by crashes between a commit and its filesystem work.
     ///
     /// `readOnly` opens an existing vault for cross-process reading (WAL
-    /// readers never block the writer) — the Mac app's browsing path. It
-    /// neither migrates nor sweeps, and every write API throws.
+    /// readers never block the writer). It neither migrates nor sweeps, and
+    /// every write API throws.
     public init(directoryURL: URL, readOnly: Bool = false) throws {
         isReadOnly = readOnly
-        var config = Configuration()
-        config.foreignKeysEnabled = true
-        config.readonly = readOnly
         if !readOnly {
             try FileManager.default.createDirectory(
                 at: directoryURL, withIntermediateDirectories: true)
+            writerLock = try WriterLock(directoryURL: directoryURL)
+        } else {
+            writerLock = nil
         }
+        var config = Configuration()
+        config.foreignKeysEnabled = true
+        config.readonly = readOnly
         pool = try DatabasePool(
             path: directoryURL.appendingPathComponent("vault.sqlite").path,
             configuration: config)
@@ -448,4 +496,6 @@ public final class VaultStore: Sendable {
 
 public enum VaultError: Error, Equatable {
     case entryNotFound(String)
+    case writerAlreadyOpen
+    case writerLockFailed(path: String, code: Int32)
 }

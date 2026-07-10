@@ -6,24 +6,36 @@ import Foundation
 public final class SocketServer: Sendable {
     private let listenFD: Int32
     private let handler: BridgeRPCHandler
-    private let path: String
 
     public init(path: String, handler: BridgeRPCHandler) throws {
         self.handler = handler
-        self.path = path
-        unlink(path)
+        if unlink(path) != 0 {
+            let code = errno
+            guard code == ENOENT else { throw SocketError.unlink(code) }
+        }
 
-        listenFD = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard listenFD >= 0 else { throw SocketError.create(errno) }
+        let descriptor = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard descriptor >= 0 else { throw SocketError.create(errno) }
+        var closeOnFailure = true
+        var unlinkOnFailure = false
+        defer {
+            if closeOnFailure { Darwin.close(descriptor) }
+            if unlinkOnFailure { unlink(path) }
+        }
 
         var addr = try ServicePaths.unixSockaddr(path: path)
         let bindResult = withUnsafePointer(to: &addr) { pointer in
             pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                bind(listenFD, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+                bind(descriptor, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
         guard bindResult == 0 else { throw SocketError.bind(errno) }
-        guard listen(listenFD, 8) == 0 else { throw SocketError.listen(errno) }
+        unlinkOnFailure = true
+        guard listen(descriptor, 8) == 0 else { throw SocketError.listen(errno) }
+
+        listenFD = descriptor
+        closeOnFailure = false
+        unlinkOnFailure = false
     }
 
     /// Accepts and serves connections until the process exits.
@@ -116,5 +128,5 @@ public final class SocketServer: Sendable {
 }
 
 public enum SocketError: Error {
-    case create(Int32), bind(Int32), listen(Int32), pathTooLong
+    case create(Int32), bind(Int32), listen(Int32), unlink(Int32), pathTooLong
 }

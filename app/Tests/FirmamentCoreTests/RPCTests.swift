@@ -1,6 +1,29 @@
 import Foundation
 import Testing
+import Darwin
 @testable import FirmamentCore
+
+private func unboundUnixSocketDescriptors() -> Set<Int32> {
+    let descriptorNames = (try? FileManager.default
+        .contentsOfDirectory(atPath: "/dev/fd")) ?? []
+    let openDescriptors = descriptorNames
+        .compactMap(Int32.init)
+        .filter { fcntl($0, F_GETFD) >= 0 }
+    return Set(openDescriptors.compactMap { descriptor in
+        var address = sockaddr_un()
+        var length = socklen_t(MemoryLayout<sockaddr_un>.size)
+        let result = withUnsafeMutablePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                getsockname(descriptor, $0, &length)
+            }
+        }
+        let hasEmptyPath = withUnsafeBytes(of: address.sun_path) {
+            $0.first == 0
+        }
+        return result == 0 && address.sun_family == AF_UNIX && hasEmptyPath
+            ? descriptor : nil
+    })
+}
 
 private func makeHandler() throws -> (BridgeRPCHandler, VaultStore) {
     let dir = FileManager.default.temporaryDirectory
@@ -153,5 +176,44 @@ struct RPCTests {
             to: #"{"jsonrpc":"2.0","id":8,"method":"nope"}"#, handler: handler)
         #expect(unknown["id"] == .number(8))
         #expect(unknown["error"] != nil)
+    }
+
+    @Test("Socket startup surfaces stale-path removal failures")
+    func socketUnlinkFailure() throws {
+        let (handler, _) = try makeHandler()
+        let occupiedPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("firmament-socket-directory-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: occupiedPath, withIntermediateDirectories: true)
+
+        do {
+            _ = try SocketServer(path: occupiedPath.path, handler: handler)
+            Issue.record("Expected socket-path removal to fail")
+        } catch SocketError.unlink(let code) {
+            #expect(code == EPERM)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test("Socket startup closes its descriptor when bind fails")
+    func socketBindFailureClosesDescriptor() throws {
+        let (handler, _) = try makeHandler()
+        let socketPath = URL(fileURLWithPath: "/tmp", isDirectory: true)
+            .appendingPathComponent("fm-missing-" + UUID().uuidString)
+            .appendingPathComponent("service.sock")
+        let before = unboundUnixSocketDescriptors()
+
+        do {
+            _ = try SocketServer(path: socketPath.path, handler: handler)
+            Issue.record("Expected binding below a missing directory to fail")
+        } catch SocketError.bind(let code) {
+            #expect(code == ENOENT)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        let leaked = unboundUnixSocketDescriptors().subtracting(before)
+        #expect(leaked.isEmpty)
     }
 }
