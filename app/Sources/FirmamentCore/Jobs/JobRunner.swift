@@ -36,7 +36,17 @@ public actor JobRunner {
     @discardableResult
     public func runPendingOnce() async -> Int {
         var processed = 0
-        while let job = try? claimNext() {
+        while true {
+            let job: Job?
+            do {
+                job = try claimNext()
+            } catch {
+                // Claim failures end the drain; the poll loop retries. Say so.
+                FileHandle.standardError.write(
+                    Data("job claim failed: \(error)\n".utf8))
+                break
+            }
+            guard let job else { break }
             await run(job)
             processed += 1
         }
