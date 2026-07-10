@@ -38,6 +38,32 @@ for (_, _, url) in agentInboxes {
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
 }
 
+// Granola (Others facet): syncs when a Business-plan API key is present,
+// via env or a key file next to the vault.
+let granolaKey = ProcessInfo.processInfo.environment["FIRMAMENT_GRANOLA_KEY"]
+    ?? (try? String(contentsOf: home.appendingPathComponent("granola.key"), encoding: .utf8))?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+if let granolaKey, !granolaKey.isEmpty {
+    let granolaSourceID = try vault.ensureSource(kind: .granola, name: "granola")
+    let connector = GranolaConnector(
+        vault: vault, sourceID: granolaSourceID,
+        client: GranolaClient(apiKey: granolaKey))
+    Task {
+        while !Task.isCancelled {
+            do {
+                let report = try await connector.syncOnce()
+                for (entryID, revisionID) in report.created + report.revised {
+                    try pipeline.enqueue(revisionID: revisionID, entryID: entryID)
+                }
+            } catch {
+                FileHandle.standardError.write(Data("granola sync error: \(error)\n".utf8))
+            }
+            try? await Task.sleep(for: .seconds(300))
+        }
+    }
+    FileHandle.standardError.write(Data("firmament-service: granola sync enabled\n".utf8))
+}
+
 let ingestTask = Task {
     while !Task.isCancelled {
         do {

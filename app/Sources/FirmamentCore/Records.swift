@@ -82,13 +82,14 @@ public struct Entry: Codable, Sendable, FetchableRecord, PersistableRecord {
     public var localOnly: Bool
     public var createdAt: Date
     public var trashedAt: Date?
+    public var externalID: String?
 
     public init(id: String = UUID().uuidString.lowercased(), sourceID: String,
                 facet: Facet, localOnly: Bool = false, createdAt: Date = Date(),
-                trashedAt: Date? = nil) {
+                trashedAt: Date? = nil, externalID: String? = nil) {
         self.id = id; self.sourceID = sourceID; self.facet = facet
         self.localOnly = localOnly; self.createdAt = createdAt
-        self.trashedAt = trashedAt
+        self.trashedAt = trashedAt; self.externalID = externalID
     }
 }
 

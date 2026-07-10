@@ -23,9 +23,16 @@ enum Migrations {
                 t.column("localOnly", .boolean).notNull().defaults(to: false)
                 t.column("createdAt", .datetime).notNull()
                 t.column("trashedAt", .datetime)
+                // Connector-side identity (e.g. Granola note id) for
+                // revision-aware sync.
+                t.column("externalID", .text)
             }
             try db.create(indexOn: "entry", columns: ["sourceID"])
             try db.create(indexOn: "entry", columns: ["facet"])
+            try db.execute(sql: """
+                CREATE UNIQUE INDEX entryExternalID ON entry(sourceID, externalID)
+                WHERE externalID IS NOT NULL
+                """)
             // Serves the egress selector: newest-first over live, shareable
             // entries without a full scan.
             try db.execute(sql: """

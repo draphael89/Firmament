@@ -56,7 +56,8 @@ public final class VaultStore: Sendable {
         mime: String,
         metadata: Data? = nil,
         localOnly: Bool = false,
-        searchableText: String? = nil
+        searchableText: String? = nil,
+        externalID: String? = nil
     ) throws -> ImportResult {
         let hash = try contentStore.put(data)
         let result = try pool.write { db -> ImportResult in
@@ -72,7 +73,8 @@ public final class VaultStore: Sendable {
                 }
                 return .duplicate(entryID: existing.entryID)
             }
-            let entry = Entry(sourceID: sourceID, facet: facet, localOnly: localOnly)
+            let entry = Entry(sourceID: sourceID, facet: facet,
+                              localOnly: localOnly, externalID: externalID)
             let revision = EntryRevision(
                 entryID: entry.id, seq: 1, contentHash: hash,
                 mime: mime, metadata: metadata)
@@ -162,6 +164,17 @@ public final class VaultStore: Sendable {
 
     public func entry(id: String) throws -> Entry? {
         try pool.read { try Entry.fetchOne($0, key: id) }
+    }
+
+    /// Connector identity lookup: the entry previously imported for an
+    /// external id (e.g. a Granola note), if any.
+    public func entryID(sourceID: String, externalID: String) throws -> String? {
+        try pool.read { db in
+            try Entry
+                .filter(Column("sourceID") == sourceID)
+                .filter(Column("externalID") == externalID)
+                .fetchOne(db)?.id
+        }
     }
 
     public func rawContent(revision: EntryRevision) throws -> Data {
