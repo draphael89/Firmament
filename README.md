@@ -1,90 +1,58 @@
 # Firmament
 
-**A private brain for one mind. Voice-first. Agent-legible. Mac-native.**
+**Firmament is the vault. Glia is the guardian inside it.**
 
-Firmament is an *identity substrate*: it captures the raw material of a mind (voice
-notes, text, fragments), compounds it into structured knowledge overnight, and serves
-two clients as equals — the human who authored it, through a spatial interface worth
-inhabiting, and AI agents, through a consent-gated MCP surface that injects not just
-what the operator knows but who they are.
+Firmament is a Mac-first personal memory vault for one operator. It captures Self,
+Others, and Agents provenance; keeps raw revisions locally in SQLite plus a
+content-addressed store; derives titles, summaries, entities, and at most one grounded
+question through `codex app-server`; and serves cited context to Claude and Codex through
+the Agent Bridge.
 
-> *Firmament — the fixed vault of sky against which everything else moves.*
-
-The full architecture lives in [`docs/SPEC.md`](docs/SPEC.md). This repository currently
-holds the **landing page**; the native app (Swift, macOS 26 / iOS 26) lands in `app/`.
-
-**Live:** https://firmament-tau.vercel.app
+The plan of record is
+[`docs/plans/2026-07-09-firmament-plan.md`](docs/plans/2026-07-09-firmament-plan.md).
+The earlier append-only ledger architecture is retained in Git history only.
 
 ## Repository layout
 
-```
-Firmament/
-  README.md
-  docs/
-    SPEC.md          # the build specification — the constitution of the build
-  site/              # the landing page (static, zero-build)
-    index.html
-    styles.css
-    sky.js           # canvas sky, THE FOLD scroll-scrub, ledger spine, form
-    fonts.css        # self-hosted @font-face (Spectral / Hanken / IBM Plex Mono)
-    fonts/           # latin-subset woff2
-  app/               # the Swift app (later)
+```text
+app/                  Swift package: core, service, MCP adapter, Mac app, tests
+docs/plans/           Product and architecture plan of record
+docs/gate0/           Feasibility evidence and deferred verification status
+integrations/         Agent capture integrations
+spikes/               Disposable feasibility probes
+site/                 Existing static landing page; product copy is not yet retargeted
 ```
 
-## The landing page — "The Ledger Made Law"
+## Build and test
 
-An editorial constitution rendered on a live night sky. Static HTML/CSS/vanilla JS —
-no framework, no build step, no runtime dependencies (fonts are self-hosted). The
-concept: the page obeys its own product's first law. As you scroll, an append-only
-**ledger spine** writes itself down the left margin; the centerpiece, **THE FOLD**, is
-a scroll-scrubbed split screen that enacts *"one breath → a star with a history"* — an
-agent's terminal and a human's igniting star reading the same event stream two ways;
-and **THE REFUSAL** shows the Gate withhold a Sanctum memory, where no star ignites.
+```sh
+cd app
+swift build
+swift test
+```
 
-Type system, strict roles: **Spectral** (serif) = law/display, **Hanken Grotesk** =
-UI/human voice, **IBM Plex Mono** = machine voice. Palette: cream on midnight with
-low-saturation star-kind tints and a periwinkle accent. Accessible (WCAG AA,
-keyboard-operable, `aria-live`), reduced-motion-equal, and compositor-only for 120 fps.
+The build produces `firmament-service`, `firmament-mcp`, and `firmament-app`. See
+[`app/README.md`](app/README.md) for vault paths, runtime roles, and agent wiring.
 
-### Run it locally
+## Current product boundaries
 
-Any static server works:
+- `firmament-service` is the sole writable owner of a vault; the Mac app reads WAL and
+  sends mutations over the local socket.
+- `local_only` and Trash are structural egress filters. Delete Now physically purges
+  rows, jobs, index entries, and unreferenced content objects.
+- Intelligence uses the operator's ChatGPT subscription through `codex app-server`.
+  Metered API billing is not enabled.
+- The native iOS/CloudKit/append-only-ledger implementation from PR #1 is superseded.
+  Voice capture and local transcription return in later gates under the current plan.
+
+## Landing page
+
+`site/` is the original static “Ledger Made Law” landing page. It remains deployable and
+byte-for-byte unchanged during the core stabilization work, but its story no longer
+describes the active product architecture.
 
 ```sh
 python3 -m http.server 4000 --directory site
-# open http://localhost:4000
 ```
 
-Or open `site/index.html` directly in a browser.
-
-### Wire up the waitlist
-
-The "request access" form works with zero backend. Open `site/sky.js` and set one of
-the two config values at the top (`const WAITLIST = { endpoint: "", mailto: "" }`):
-
-- `WAITLIST.endpoint` — a [Formspree](https://formspree.io) (or similar) POST URL.
-  Submissions are sent there and the visitor sees the append-confirmation.
-- `WAITLIST.mailto` — an email address. With no endpoint set, submitting opens the
-  visitor's mail client, pre-filled to this address.
-
-With neither set, the form validates and honestly reports that the waitlist isn't
-collecting yet — it never fabricates a signup.
-
-### Deploy
-
-It's static, so anything serves it. Currently on **Vercel** (project `firmament`,
-production alias `firmament-tau.vercel.app`):
-
-```sh
-vercel deploy --cwd site --prod
-```
-
-GitHub Pages (point at `/site`), Netlify, or Cloudflare Pages work with no config.
-
-## Design language: Nocturne
-
-Near-black field with a barely-perceptible blue-violet radial breath. Stars with soft
-bloom, hued by kind within a narrow saturation band — a night sky, not a dashboard.
-Serif with real italics for law and manifesto text; a quiet grotesk for the human
-voice; monospace for the machine. Motion eases with strong, snappy curves, is
-compositor-only, and respects `prefers-reduced-motion`.
+Production currently lives at <https://firmament-tau.vercel.app>.
