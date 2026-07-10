@@ -31,6 +31,19 @@ browsable raw, degraded health) needs. This hardens, not weakens, the
 subscription-compute decision: the failure mode is a first-class protocol
 event, not a hang.
 
+### Update — 2026-07-09 ~23:00, first live run of the production client
+
+`FirmamentCore`'s own `CodexAppServerProvider` (not the Python spike) ran
+against the real server from `firmament-service`: initialize handshake,
+`thread/start` (whose live response nests the id as `thread.id` — the client
+now accepts both shapes), `turn/start`, and turn-failure notifications all
+validated on the wire. The observed failure was `usageLimitExceeded`
+(quota contention with the concurrent review run), which the stack handled
+exactly as designed: structured parse → `ReasoningError.usageLimitExceeded`
+→ job parked with attempts unchanged. **Still pending**: the success path
+(`item/completed` agentMessage shape) — scheduled for the next quota window;
+until then a shape mismatch degrades to timeout→park, never terminal.
+
 ## Spike 2 — Extraction quality at workhorse tier: **first-sample PASS**
 
 Ran earlier on 2026-07-09 via `codex exec` (same backend, same auth):

@@ -22,9 +22,11 @@ public final class ServiceSocketClient: @unchecked Sendable {
         ]
         var data = try JSONSerialization.data(withJSONObject: request)
         data.append(0x0A)
-        guard data.withUnsafeBytes({ write(fd, $0.baseAddress, $0.count) }) == data.count else {
+        do {
+            try writeAll(data)
+        } catch {
             disconnect()
-            throw ServiceClientError.unavailable("write to service failed")
+            throw error
         }
         let line = try readResponseLine()
         guard let obj = try JSONSerialization.jsonObject(with: line) as? [String: Any] else {
@@ -55,6 +57,23 @@ public final class ServiceSocketClient: @unchecked Sendable {
                 "firmament-service is not running (no socket at \(path)). Start it and retry.")
         }
         fd = sock
+    }
+
+    /// write(2) may write partially or take EINTR; loop until done.
+    private func writeAll(_ data: Data) throws {
+        var offset = 0
+        while offset < data.count {
+            let written = data.withUnsafeBytes { buffer in
+                write(fd, buffer.baseAddress!.advanced(by: offset), buffer.count - offset)
+            }
+            if written > 0 {
+                offset += written
+            } else if written < 0 && errno == EINTR {
+                continue
+            } else {
+                throw ServiceClientError.unavailable("write to service failed")
+            }
+        }
     }
 
     private func readResponseLine() throws -> Data {

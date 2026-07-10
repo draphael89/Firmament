@@ -391,6 +391,37 @@ struct VaultStoreTests {
         #expect(after == [visible, trashed])
     }
 
+    @Test("Read-only open browses alongside the writer and rejects writes")
+    func readOnlyOpen() throws {
+        let (vault, dir) = try makeVault()
+        let source = try makeSource(vault)
+        guard case .created(let entryID, _) = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet,
+            data: Data("visible to readers".utf8), mime: "text/plain",
+            searchableText: "visible to readers")
+        else { Issue.record("expected creation"); return }
+
+        // Second store on the same vault, read-only (the Mac app's path).
+        let reader = try VaultStore(directoryURL: dir, readOnly: true)
+        #expect(reader.isReadOnly)
+        #expect(try reader.browse(scope: .all).map(\.id) == [entryID])
+        #expect(try reader.search("visible", includeLocalOnly: true) == [entryID])
+        #expect(try reader.entryDetail(id: entryID)?.rawText == "visible to readers")
+
+        // Writer commits are visible to the reader without reopening.
+        _ = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet,
+            data: Data("second entry".utf8), mime: "text/plain")
+        #expect(try reader.browse(scope: .all).count == 2)
+
+        // Writes through the read-only store fail rather than fork history.
+        #expect(throws: (any Error).self) {
+            _ = try reader.importEntry(
+                sourceID: source.id, facet: .selfFacet,
+                data: Data("should fail".utf8), mime: "text/plain")
+        }
+    }
+
     @Test("Content store writes are idempotent and content-addressed")
     func contentStore() throws {
         let (vault, _) = try makeVault()

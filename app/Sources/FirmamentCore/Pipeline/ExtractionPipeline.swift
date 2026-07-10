@@ -130,6 +130,9 @@ public struct ExtractionPipeline: Sendable {
         }
 
         try await vault.pool.write { db in
+            // The entry may have been purged while the provider was
+            // thinking; a legitimate Delete Now wins over the analysis.
+            guard try EntryRevision.exists(db, key: revisionID) else { return }
             let run = AnalysisRun(
                 revisionID: revisionID, provider: "codex-app-server",
                 model: Self.model, promptVersion: Self.promptVersion,
@@ -171,6 +174,7 @@ public struct ExtractionPipeline: Sendable {
         revisionID: String, error: String, startedAt: Date
     ) throws {
         try vault.pool.write { db in
+            guard try EntryRevision.exists(db, key: revisionID) else { return }
             try AnalysisRun(
                 revisionID: revisionID, provider: "codex-app-server",
                 model: Self.model, promptVersion: Self.promptVersion,

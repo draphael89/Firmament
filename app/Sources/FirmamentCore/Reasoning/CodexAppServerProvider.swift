@@ -47,7 +47,10 @@ public actor CodexAppServerProvider: ReasoningProvider {
             await teardown()
             throw ReasoningError.providerUnavailable("thread/start: \(error)")
         }
-        guard let threadID = threadResult["threadId"]?.stringValue else {
+        // The wire shape has varied across app-server versions: top-level
+        // threadId or a nested thread object (the spike saw both).
+        guard let threadID = threadResult["threadId"]?.stringValue
+            ?? threadResult["thread"]?["id"]?.stringValue else {
             throw ReasoningError.providerUnavailable("thread/start returned no threadId")
         }
 
