@@ -3,6 +3,23 @@ import Testing
 import Darwin
 @testable import FirmamentCore
 
+private func unboundUnixSocketDescriptors() -> Set<Int32> {
+    Set((0..<getdtablesize()).compactMap { descriptor in
+        var address = sockaddr_un()
+        var length = socklen_t(MemoryLayout<sockaddr_un>.size)
+        let result = withUnsafeMutablePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                getsockname(descriptor, $0, &length)
+            }
+        }
+        let hasEmptyPath = withUnsafeBytes(of: address.sun_path) {
+            $0.first == 0
+        }
+        return result == 0 && address.sun_family == AF_UNIX && hasEmptyPath
+            ? descriptor : nil
+    })
+}
+
 private func makeHandler() throws -> (BridgeRPCHandler, VaultStore) {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("firmament-rpc-tests-\(UUID().uuidString)")
@@ -172,5 +189,27 @@ struct RPCTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+    }
+
+    @Test("Socket startup closes its descriptor when bind fails")
+    func socketBindFailureClosesDescriptor() throws {
+        let (handler, _) = try makeHandler()
+        let socketPath = URL(fileURLWithPath: "/tmp", isDirectory: true)
+            .appendingPathComponent("fm-missing-" + UUID().uuidString)
+            .appendingPathComponent("service.sock")
+        let before = unboundUnixSocketDescriptors()
+
+        do {
+            _ = try SocketServer(path: socketPath.path, handler: handler)
+            Issue.record("Expected binding below a missing directory to fail")
+        } catch SocketError.bind(let code) {
+            #expect(code == ENOENT)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        let leaked = unboundUnixSocketDescriptors().subtracting(before)
+        defer { leaked.forEach { Darwin.close($0) } }
+        #expect(leaked.isEmpty)
     }
 }

@@ -153,16 +153,18 @@ struct ExtractionPipelineTests {
 
     @Test("Structured-output schema requires every declared question field")
     func strictQuestionSchema() throws {
-        guard let schema = try JSONSerialization.jsonObject(
-            with: ExtractionPipeline.outputSchema) as? [String: Any],
-              let properties = schema["properties"] as? [String: Any],
-              let question = properties["question"] as? [String: Any],
-              let questionProperties = question["properties"] as? [String: Any],
-              let required = question["required"] as? [String] else {
+        let schema = try JSONDecoder().decode(
+            JSONValue.self, from: ExtractionPipeline.outputSchema)
+        guard case .object(let questionProperties)? =
+                  schema["properties"]?["question"]?["properties"],
+              case .array(let requiredValues)? =
+                  schema["properties"]?["question"]?["required"] else {
             Issue.record("Extraction schema is missing the question contract")
             return
         }
 
+        let required = requiredValues.compactMap(\.stringValue)
+        #expect(required.count == requiredValues.count)
         #expect(Set(required) == Set(questionProperties.keys))
     }
 

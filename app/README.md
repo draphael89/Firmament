@@ -91,5 +91,5 @@ rename; text imports immediately, audio awaits the transcription stage.
 ## Tests
 
 ```sh
-cd app && swift test   # 57 tests: storage, purge, jobs, pipeline, bridge, connectors
+cd app && swift test   # 58 tests: storage, purge, jobs, pipeline, bridge, connectors
 ```
