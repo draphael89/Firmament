@@ -40,12 +40,9 @@ public final class ServiceSocketClient: @unchecked Sendable {
         guard fd < 0 else { return }
         let sock = socket(AF_UNIX, SOCK_STREAM, 0)
         guard sock >= 0 else { throw ServiceClientError.unavailable("socket() failed") }
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        withUnsafeMutableBytes(of: &addr.sun_path) { dest in
-            _ = path.utf8CString.withUnsafeBytes { src in
-                memcpy(dest.baseAddress!, src.baseAddress!, min(src.count, dest.count))
-            }
+        guard var addr = try? ServicePaths.unixSockaddr(path: path) else {
+            close(sock)
+            throw ServiceClientError.unavailable("socket path too long: \(path)")
         }
         let result = withUnsafePointer(to: &addr) { pointer in
             pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {

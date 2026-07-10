@@ -16,15 +16,7 @@ public final class SocketServer: Sendable {
         listenFD = socket(AF_UNIX, SOCK_STREAM, 0)
         guard listenFD >= 0 else { throw SocketError.create(errno) }
 
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let maxLength = MemoryLayout.size(ofValue: addr.sun_path) - 1
-        guard path.utf8.count <= maxLength else { throw SocketError.pathTooLong }
-        withUnsafeMutableBytes(of: &addr.sun_path) { dest in
-            _ = path.utf8CString.withUnsafeBytes { src in
-                memcpy(dest.baseAddress!, src.baseAddress!, min(src.count, dest.count))
-            }
-        }
+        var addr = try ServicePaths.unixSockaddr(path: path)
         let bindResult = withUnsafePointer(to: &addr) { pointer in
             pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 bind(listenFD, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
@@ -92,13 +84,33 @@ public final class SocketServer: Sendable {
         case .success(let value):
             return .object(["jsonrpc": .string("2.0"), "id": id, "result": value])
         case .failure(let error):
+            let (code, message) = Self.wireError(error)
             return .object([
                 "jsonrpc": .string("2.0"), "id": id,
                 "error": .object([
-                    "code": .number(-32000),
-                    "message": .string(String(describing: error)),
+                    "code": .number(Double(code)),
+                    "message": .string(message),
                 ]),
             ])
+        }
+    }
+
+    /// Distinct codes and human messages per error class — the wire contract
+    /// is not a Swift debug dump.
+    static func wireError(_ error: Error) -> (Int, String) {
+        switch error {
+        case RPCError.unknownMethod(let method):
+            return (-32601, "method not found: \(method)")
+        case RPCError.badParams(let detail):
+            return (-32602, "invalid params: \(detail)")
+        case RPCError.misconfigured(let detail):
+            return (-32002, "service misconfigured: \(detail)")
+        case BridgeError.unknownSession(let id):
+            return (-32001, "unknown session: \(id)")
+        case VaultError.entryNotFound(let id):
+            return (-32001, "entry not found: \(id)")
+        default:
+            return (-32000, "internal error: \(error)")
         }
     }
 }

@@ -7,18 +7,16 @@ import GRDB
 public struct ExtractionPipeline: Sendable {
     public static let jobKind = "extract"
     public static let promptVersion = "extract-v1"
+    /// Workhorse tier (plan §8 spike 2); escalate if question quality flags.
+    static let model = "gpt-5.6-terra"
+    static let effort = "high"
 
     let vault: VaultStore
     let provider: ReasoningProvider
-    let model: String
-    let effort: String?
 
-    public init(vault: VaultStore, provider: ReasoningProvider,
-                model: String = "gpt-5.6-terra", effort: String? = "high") {
+    public init(vault: VaultStore, provider: ReasoningProvider) {
         self.vault = vault
         self.provider = provider
-        self.model = model
-        self.effort = effort
     }
 
     /// Structured output contract for the extraction call.
@@ -42,6 +40,22 @@ public struct ExtractionPipeline: Sendable {
             case title, summary, people, projects, topics, decisions
             case openLoops = "open_loops"
             case question
+        }
+
+        /// Lenient decode: only title/summary/question can sink a run; a
+        /// model that omits a list field shouldn't fail the extraction.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            title = try c.decode(String.self, forKey: .title)
+            summary = try c.decode(String.self, forKey: .summary)
+            people = try c.decodeIfPresent([String].self, forKey: .people) ?? []
+            projects = try c.decodeIfPresent([String].self, forKey: .projects) ?? []
+            topics = try c.decodeIfPresent([String].self, forKey: .topics) ?? []
+            decisions = try c.decodeIfPresent([String].self, forKey: .decisions) ?? []
+            openLoops = try c.decodeIfPresent([String].self, forKey: .openLoops) ?? []
+            question = try c.decodeIfPresent(
+                QuestionCandidate.self, forKey: .question)
+                ?? QuestionCandidate(abstain: true, text: nil, rationale: nil, evidence: nil)
         }
     }
 
@@ -79,6 +93,9 @@ public struct ExtractionPipeline: Sendable {
         // never reach a provider; they stay raw and browsable (plan §4).
         guard !entry.localOnly else { return }
 
+        // Audio waits for the transcription stage (plan §8 spike 6); the
+        // entry stays browsable and the job completes rather than failing.
+        guard !revision.mime.hasPrefix("audio/") else { return }
         guard revision.mime.hasPrefix("text/") else {
             throw PipelineError.unsupportedMime(revision.mime)
         }
@@ -92,7 +109,7 @@ public struct ExtractionPipeline: Sendable {
         do {
             responseText = try await provider.complete(ReasoningRequest(
                 prompt: Self.prompt(for: text, facet: entry.facet),
-                model: model, effort: effort,
+                model: Self.model, effort: Self.effort,
                 outputSchema: Self.outputSchema))
         } catch let error as ReasoningError {
             // Record model-side rejections for the audit trail; outages are
@@ -115,7 +132,7 @@ public struct ExtractionPipeline: Sendable {
         try await vault.pool.write { db in
             let run = AnalysisRun(
                 revisionID: revisionID, provider: "codex-app-server",
-                model: model, promptVersion: Self.promptVersion,
+                model: Self.model, promptVersion: Self.promptVersion,
                 status: .succeeded, output: Data(responseText.utf8),
                 startedAt: startedAt, finishedAt: Date())
             try run.insert(db)
@@ -156,7 +173,7 @@ public struct ExtractionPipeline: Sendable {
         try vault.pool.write { db in
             try AnalysisRun(
                 revisionID: revisionID, provider: "codex-app-server",
-                model: model, promptVersion: Self.promptVersion,
+                model: Self.model, promptVersion: Self.promptVersion,
                 status: .failed, error: error,
                 startedAt: startedAt, finishedAt: Date()
             ).insert(db)

@@ -3,7 +3,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(VaultModel.self) private var model
-    @State private var selection: String?
     @State private var showCapture = false
 
     var body: some View {
@@ -40,7 +39,7 @@ struct ContentView: View {
             entryList
                 .navigationSplitViewColumnWidth(min: 320, ideal: 380)
         } detail: {
-            if let selection, let detail = model.detail(for: selection) {
+            if let detail = model.selectedDetail {
                 InspectorView(detail: detail)
             } else {
                 ContentUnavailableView(
@@ -88,7 +87,9 @@ struct ContentView: View {
                 "Empty", systemImage: "moon.stars",
                 description: Text("Entries appear here as they are captured and imported."))
         } else {
-            List(model.rows, selection: $selection) { row in
+            List(model.rows, selection: Binding(
+                get: { model.selection },
+                set: { model.selection = $0 })) { row in
                 EntryRowView(row: row).tag(row.id)
             }
             .listStyle(.inset)

@@ -14,8 +14,10 @@ private func makeHandler() throws -> (BridgeRPCHandler, VaultStore) {
         searchableText: "I prefer boring technology for infrastructure")
     let bridge = BridgeService(
         vault: vault, identityURL: dir.appendingPathComponent("identity.md"))
+    let captureSourceID = try vault.ensureSource(kind: .capture, name: "capture")
     let handler = BridgeRPCHandler(
-        bridge: bridge, agentSourceIDs: [.claudeCode: sourceID])
+        bridge: bridge, agentSourceIDs: [.claudeCode: sourceID],
+        captureSourceID: captureSourceID)
     return (handler, vault)
 }
 
@@ -61,6 +63,67 @@ struct RPCTests {
         } else {
             Issue.record("missing agents count")
         }
+    }
+
+    @Test("App write surface: capture, trash cycle, question lifecycle, purge")
+    func appWriteSurface() throws {
+        let (handler, vault) = try makeHandler()
+
+        // capture_note creates a Self entry and reports it.
+        let captured = try handler.handle(
+            method: "capture_note",
+            params: .object(["text": .string("captured via the app"),
+                             "localOnly": .bool(false)]))
+        guard let entryID = captured["entryID"]?.stringValue else {
+            Issue.record("no entryID"); return
+        }
+        #expect(try vault.entry(id: entryID)?.facet == .selfFacet)
+
+        // trash / untrash round trip.
+        _ = try handler.handle(
+            method: "trash_entry", params: .object(["entryID": .string(entryID)]))
+        #expect(try vault.entry(id: entryID)?.trashedAt != nil)
+        _ = try handler.handle(
+            method: "untrash_entry", params: .object(["entryID": .string(entryID)]))
+        #expect(try vault.entry(id: entryID)?.trashedAt == nil)
+
+        // answer_question files a linked Self entry and resolves the question.
+        let question = Question(entryID: entryID, text: "Why capture this?")
+        try vault.pool.write { try question.insert($0) }
+        let answered = try handler.handle(
+            method: "answer_question",
+            params: .object(["questionID": .string(question.id),
+                             "answer": .string("Because provenance matters")]))
+        #expect(answered["entryID"]?.stringValue != nil)
+        let resolved = try vault.pool.read { try Question.fetchOne($0, key: question.id) }
+        #expect(resolved?.status == .answered)
+        #expect(try vault.search("provenance matters").count == 1)
+
+        // dismiss_question on an unknown id is a structured error.
+        #expect(throws: RPCError.self) {
+            _ = try handler.handle(
+                method: "dismiss_question",
+                params: .object(["questionID": .string("nope")]))
+        }
+
+        // purge_entry reports and removes.
+        let report = try handler.handle(
+            method: "purge_entry", params: .object(["entryID": .string(entryID)]))
+        if case .number(let purged)? = report["revisionsPurged"] {
+            #expect(purged == 1)
+        } else {
+            Issue.record("missing purge report")
+        }
+        #expect(try vault.entry(id: entryID) == nil)
+    }
+
+    @Test("Wire errors carry distinct codes per class")
+    func wireErrorCodes() throws {
+        #expect(SocketServer.wireError(RPCError.unknownMethod("x")).0 == -32601)
+        #expect(SocketServer.wireError(RPCError.badParams("x")).0 == -32602)
+        #expect(SocketServer.wireError(BridgeError.unknownSession("s")).0 == -32001)
+        #expect(SocketServer.wireError(VaultError.entryNotFound("e")).0 == -32001)
+        #expect(!SocketServer.wireError(BridgeError.unknownSession("s")).1.contains("("))
     }
 
     @Test("Unknown methods and bad params are structured errors")

@@ -15,6 +15,9 @@ public actor CodexAppServerProvider: ReasoningProvider {
     /// Latest agent message text per thread (each request owns its thread).
     private var agentText: [String: String] = [:]
     private var turnWaiters: [String: CheckedContinuation<TurnOutcome, Never>] = [:]
+    /// Outcomes that arrived before their waiter registered (the turn/start
+    /// response and the completion notification race on fast failures).
+    private var earlyOutcomes: [String: TurnOutcome] = [:]
 
     private struct TurnOutcome: Sendable {
         var failed: Bool
@@ -71,7 +74,7 @@ public actor CodexAppServerProvider: ReasoningProvider {
             throw ReasoningError.providerUnavailable("turn/start returned no turn id")
         }
 
-        let outcome = try await awaitTurn(id: turnID)
+        let outcome = await awaitTurn(id: turnID)
         defer { agentText[threadID] = nil }
 
         if outcome.failed {
@@ -81,6 +84,10 @@ public actor CodexAppServerProvider: ReasoningProvider {
                 throw ReasoningError.usageLimitExceeded(retryAfter: nil)
             case "unauthorized", "authExpired":
                 throw ReasoningError.authExpired(message)
+            case "connectionClosed", "timeout":
+                // Transport trouble, not the job's fault — parks, never
+                // burns retry attempts (plan §11).
+                throw ReasoningError.providerUnavailable(message)
             default:
                 if message.localizedCaseInsensitiveContains("log in")
                     || message.localizedCaseInsensitiveContains("auth") {
@@ -120,6 +127,13 @@ public actor CodexAppServerProvider: ReasoningProvider {
         self.process = process
         self.connection = conn
         startPump(conn)
+
+        // Drain stderr or the pipe buffer fills and stalls the server.
+        let stderrHandle = stderr.fileHandleForReading
+        Task.detached {
+            while let data = try? stderrHandle.read(upToCount: 65536),
+                  !data.isEmpty {}
+        }
 
         do {
             _ = try await conn.request("initialize", params: .object([
@@ -161,42 +175,53 @@ public actor CodexAppServerProvider: ReasoningProvider {
         case "turn/completed", "turn/failed":
             guard let turn = notification.params["turn"],
                   let turnID = turn["id"]?.stringValue else { return }
-            let error = turn["error"]
+            // JSON "error": null decodes to .null, which is a non-nil
+            // JSONValue — normalize it away before judging failure.
+            let error = turn["error"].flatMap { $0 == .null ? nil : $0 }
             let outcome = TurnOutcome(
-                failed: notification.method == "turn/failed" || error != nil
-                    && turn["status"]?.stringValue != "completed",
+                failed: notification.method == "turn/failed"
+                    || turn["status"]?.stringValue == "failed"
+                    || error != nil,
                 errorMessage: error?["message"]?.stringValue,
                 errorInfo: error?["codexErrorInfo"]?.stringValue)
-            turnWaiters.removeValue(forKey: turnID)?.resume(returning: outcome)
+            if let waiter = turnWaiters.removeValue(forKey: turnID) {
+                waiter.resume(returning: outcome)
+            } else {
+                earlyOutcomes[turnID] = outcome
+            }
         default:
             break
         }
     }
 
-    private func awaitTurn(id: String) async throws -> TurnOutcome {
-        let timeout = turnTimeout
-        return try await withThrowingTaskGroup(of: TurnOutcome.self) { group in
-            group.addTask {
-                await withCheckedContinuation { continuation in
-                    Task { await self.addWaiter(id: id, continuation: continuation) }
-                }
+    /// Deadlock-free wait: one continuation, resumed by exactly one of the
+    /// notification pump, the timeout task, or connection loss — whichever
+    /// removes it from the waiter map first.
+    private func awaitTurn(id: String) async -> TurnOutcome {
+        if let early = earlyOutcomes.removeValue(forKey: id) { return early }
+        let timeoutTask = Task { [turnTimeout] in
+            try? await Task.sleep(for: turnTimeout)
+            await self.resolveTurn(id: id, with: TurnOutcome(
+                failed: true,
+                errorMessage: "turn timed out after \(turnTimeout)",
+                errorInfo: "timeout"))
+        }
+        defer { timeoutTask.cancel() }
+        return await withCheckedContinuation { continuation in
+            if let early = earlyOutcomes.removeValue(forKey: id) {
+                continuation.resume(returning: early)
+            } else {
+                turnWaiters[id] = continuation
             }
-            group.addTask {
-                try await Task.sleep(for: timeout)
-                throw ReasoningError.providerUnavailable("turn timed out after \(timeout)")
-            }
-            guard let outcome = try await group.next() else {
-                throw ReasoningError.providerUnavailable("turn wait aborted")
-            }
-            group.cancelAll()
-            return outcome
         }
     }
 
-    private func addWaiter(
-        id: String, continuation: CheckedContinuation<TurnOutcome, Never>
-    ) {
-        turnWaiters[id] = continuation
+    private func resolveTurn(id: String, with outcome: TurnOutcome) {
+        if let waiter = turnWaiters.removeValue(forKey: id) {
+            waiter.resume(returning: outcome)
+        } else {
+            earlyOutcomes[id] = outcome
+        }
     }
 
     private func connectionClosed() {

@@ -146,6 +146,29 @@ public final class VaultStore: Sendable {
             .fetchOne(db)
     }
 
+    /// Batched (entry, current revision) fetch preserving input order —
+    /// one read transaction instead of 2N.
+    func entriesWithCurrentRevisions(ids: [String]) throws -> [(Entry, EntryRevision)] {
+        guard !ids.isEmpty else { return [] }
+        return try pool.read { db in
+            let entries = try Entry.fetchAll(db, keys: ids)
+                .reduce(into: [String: Entry]()) { $0[$1.id] = $1 }
+            let revisions = try EntryRevision
+                .filter(ids.contains(Column("entryID")))
+                .order(Column("seq").desc)
+                .fetchAll(db)
+            var currentByEntry: [String: EntryRevision] = [:]
+            for revision in revisions where currentByEntry[revision.entryID] == nil {
+                currentByEntry[revision.entryID] = revision
+            }
+            return ids.compactMap { id in
+                guard let entry = entries[id], let revision = currentByEntry[id]
+                else { return nil }
+                return (entry, revision)
+            }
+        }
+    }
+
     /// Import/addRevision write the object before their row transaction; a
     /// purge running in between can see it unreferenced and unlink it. The
     /// bytes are still in hand here, so re-materialize.
@@ -176,6 +199,14 @@ public final class VaultStore: Sendable {
 
     public func entry(id: String) throws -> Entry? {
         try pool.read { try Entry.fetchOne($0, key: id) }
+    }
+
+    /// Cheap cross-process change signal: SQLite's data_version increments
+    /// whenever another connection commits. Lets pollers skip idle rebuilds.
+    public func dataVersion() throws -> Int {
+        try pool.read { db in
+            try Int.fetchOne(db, sql: "PRAGMA data_version") ?? -1
+        }
     }
 
     /// Connector identity lookup: the entry previously imported for an

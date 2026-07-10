@@ -55,6 +55,30 @@ public struct GranolaClient: Sendable {
         public var notes: [GranolaNote]
         public var hasMore: Bool?
         public var cursor: String?
+
+        enum CodingKeys: String, CodingKey {
+            case notes, hasMore, cursor, hasMoreSnake = "has_more",
+                 nextCursor = "next_cursor"
+        }
+
+        /// Tolerant pagination decode: docs say camelCase, siblings are
+        /// snake_case — accept either so a wire drift degrades to nothing
+        /// worse than an explicit test failure, not a silent one-page sync.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            notes = try c.decodeIfPresent([GranolaNote].self, forKey: .notes) ?? []
+            hasMore = try c.decodeIfPresent(Bool.self, forKey: .hasMore)
+                ?? c.decodeIfPresent(Bool.self, forKey: .hasMoreSnake)
+            cursor = try c.decodeIfPresent(String.self, forKey: .cursor)
+                ?? c.decodeIfPresent(String.self, forKey: .nextCursor)
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(notes, forKey: .notes)
+            try c.encodeIfPresent(hasMore, forKey: .hasMore)
+            try c.encodeIfPresent(cursor, forKey: .cursor)
+        }
     }
 
     let apiKey: String
@@ -145,7 +169,8 @@ public struct GranolaConnector: Sendable {
                 try ingest(note, into: &report)
             }
             if let next = page.cursor { cursor = next }
-            if page.hasMore != true { break }
+            // hasMore without a fresh cursor would spin on the same page.
+            if page.hasMore != true || page.cursor == nil { break }
         }
         try storeCursor(cursor)
         return report

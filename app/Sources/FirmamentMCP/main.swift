@@ -84,16 +84,20 @@ func callTool(name: String, arguments: [String: Any]) -> [String: Any] {
     do {
         switch name {
         case "prepare_session":
-            let result = try service.call(method: "prepare_session", params: [
+            var params: [String: Any] = [
                 "task": arguments["task"] as? String ?? "",
-                "prd": arguments["prd"] as Any,
                 "client": defaultClient,
-            ].compactMapValues { $0 is NSNull ? nil : $0 })
+            ]
+            if let prd = arguments["prd"] as? String { params["prd"] = prd }
+            let result = try service.call(method: "prepare_session", params: params)
             guard let packet = result as? [String: Any],
-                  let rendered = packet["rendered"] as? String else {
+                  let rendered = packet["rendered"] as? String,
+                  let sessionID = packet["sessionID"] as? String else {
                 return text("Error: malformed packet from service", isError: true)
             }
-            return text(rendered)
+            // The id the follow-up tools need, structured — never make the
+            // agent regex it out of prose.
+            return text("session_id: \(sessionID)\n\n\(rendered)")
         case "ask_glia":
             let result = try service.call(method: "ask_glia", params: [
                 "sessionID": arguments["session_id"] as? String ?? "",
