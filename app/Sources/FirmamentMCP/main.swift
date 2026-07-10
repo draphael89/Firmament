@@ -11,97 +11,7 @@ let home = ProcessInfo.processInfo.environment["FIRMAMENT_HOME"]
         .appendingPathComponent("Library/Application Support/Firmament")
 let defaultClient = ProcessInfo.processInfo.environment["FIRMAMENT_CLIENT"] ?? "claude_code"
 
-// MARK: - Service socket client (one response line per request line)
-
-final class ServiceClient {
-    private var fd: Int32 = -1
-    private var buffer = Data()
-    private var nextID = 0
-    let path: String
-
-    init(path: String) { self.path = path }
-
-    private func connectIfNeeded() throws {
-        guard fd < 0 else { return }
-        let sock = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard sock >= 0 else { throw ServiceError.unavailable("socket() failed") }
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        withUnsafeMutableBytes(of: &addr.sun_path) { dest in
-            _ = path.utf8CString.withUnsafeBytes { src in
-                memcpy(dest.baseAddress!, src.baseAddress!, min(src.count, dest.count))
-            }
-        }
-        let result = withUnsafePointer(to: &addr) { pointer in
-            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                connect(sock, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard result == 0 else {
-            close(sock)
-            throw ServiceError.unavailable(
-                "firmament-service is not running (no socket at \(path)). Start it and retry.")
-        }
-        fd = sock
-    }
-
-    func call(method: String, params: [String: Any]) throws -> Any {
-        try connectIfNeeded()
-        nextID += 1
-        let request: [String: Any] = [
-            "jsonrpc": "2.0", "id": nextID, "method": method, "params": params,
-        ]
-        var data = try JSONSerialization.data(withJSONObject: request)
-        data.append(0x0A)
-        guard data.withUnsafeBytes({ write(fd, $0.baseAddress, $0.count) }) == data.count else {
-            disconnect()
-            throw ServiceError.unavailable("write to service failed")
-        }
-        let line = try readResponseLine()
-        guard let obj = try JSONSerialization.jsonObject(with: line) as? [String: Any] else {
-            throw ServiceError.protocolError("unparseable service response")
-        }
-        if let error = obj["error"] as? [String: Any] {
-            throw ServiceError.remote(error["message"] as? String ?? "unknown service error")
-        }
-        return obj["result"] ?? [:]
-    }
-
-    private func readResponseLine() throws -> Data {
-        while true {
-            if let newline = buffer.firstIndex(of: 0x0A) {
-                let line = buffer[buffer.startIndex..<newline]
-                buffer.removeSubrange(buffer.startIndex...newline)
-                return Data(line)
-            }
-            var chunk = [UInt8](repeating: 0, count: 65536)
-            let count = read(fd, &chunk, chunk.count)
-            guard count > 0 else {
-                disconnect()
-                throw ServiceError.unavailable("service connection closed")
-            }
-            buffer.append(contentsOf: chunk[0..<count])
-        }
-    }
-
-    private func disconnect() {
-        if fd >= 0 { close(fd) }
-        fd = -1
-        buffer.removeAll()
-    }
-}
-
-enum ServiceError: Error {
-    case unavailable(String), remote(String), protocolError(String)
-
-    var message: String {
-        switch self {
-        case .unavailable(let m), .remote(let m), .protocolError(let m): return m
-        }
-    }
-}
-
-let service = ServiceClient(path: ServicePaths.socketPath(home: home))
+let service = ServiceSocketClient(path: ServicePaths.socketPath(home: home))
 
 // MARK: - Tool surface
 
@@ -213,7 +123,7 @@ func callTool(name: String, arguments: [String: Any]) -> [String: Any] {
         default:
             return text("Error: unknown tool \(name)", isError: true)
         }
-    } catch let error as ServiceError {
+    } catch let error as ServiceClientError {
         return text("Error: \(error.message)", isError: true)
     } catch {
         return text("Error: \(error)", isError: true)

@@ -8,6 +8,7 @@ let package = Package(
         .library(name: "FirmamentCore", targets: ["FirmamentCore"]),
         .executable(name: "firmament-service", targets: ["FirmamentService"]),
         .executable(name: "firmament-mcp", targets: ["FirmamentMCP"]),
+        .executable(name: "firmament-app", targets: ["FirmamentApp"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0")
@@ -23,6 +24,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "FirmamentMCP",
+            dependencies: ["FirmamentCore"]
+        ),
+        .executableTarget(
+            name: "FirmamentApp",
             dependencies: ["FirmamentCore"]
         ),
         .testTarget(

@@ -14,6 +14,7 @@ let vault = try VaultStore(directoryURL: home)
 FileHandle.standardError.write(Data("firmament-service: vault at \(home.path)\n".utf8))
 
 let inboxSourceID = try vault.ensureSource(kind: .inbox, name: "inbox")
+let captureSourceID = try vault.ensureSource(kind: .capture, name: "capture")
 let claudeSourceID = try vault.ensureSource(kind: .claudeCode, name: "claude-code-sessions")
 let codexSourceID = try vault.ensureSource(kind: .codex, name: "codex-sessions")
 
@@ -96,7 +97,11 @@ let bridge = BridgeService(
     vault: vault, identityURL: home.appendingPathComponent("identity.md"))
 let handler = BridgeRPCHandler(
     bridge: bridge,
-    agentSourceIDs: [.claudeCode: claudeSourceID, .codex: codexSourceID])
+    agentSourceIDs: [.claudeCode: claudeSourceID, .codex: codexSourceID],
+    captureSourceID: captureSourceID,
+    onImported: { entryID, revisionID in
+        try? pipeline.enqueue(revisionID: revisionID, entryID: entryID)
+    })
 let socketPath = ServicePaths.socketPath(home: home)
 
 let server = try SocketServer(path: socketPath, handler: handler)

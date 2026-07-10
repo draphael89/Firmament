@@ -9,7 +9,7 @@ public enum ImportResult: Equatable, Sendable {
     case duplicate(entryID: String)
 }
 
-public struct PurgeReport: Equatable, Sendable {
+public struct PurgeReport: Codable, Equatable, Sendable {
     public var revisionsPurged: Int
     public var objectsDeleted: Int
     public var jobsDeleted: Int
@@ -25,22 +25,34 @@ public final class VaultStore: Sendable {
     let pool: DatabasePool
     let contentStore: ContentStore
 
+    public let isReadOnly: Bool
+
     /// Opens (creating if needed) a vault rooted at `directoryURL`:
     /// `vault.sqlite` + `objects/` live inside it. Assumes one process owns
-    /// the vault (the core service); open-time sweep reclaims objects
-    /// orphaned by crashes between a commit and its filesystem work.
-    public init(directoryURL: URL) throws {
-        try FileManager.default.createDirectory(
-            at: directoryURL, withIntermediateDirectories: true)
+    /// writes (the core service); open-time sweep reclaims objects orphaned
+    /// by crashes between a commit and its filesystem work.
+    ///
+    /// `readOnly` opens an existing vault for cross-process reading (WAL
+    /// readers never block the writer) — the Mac app's browsing path. It
+    /// neither migrates nor sweeps, and every write API throws.
+    public init(directoryURL: URL, readOnly: Bool = false) throws {
+        isReadOnly = readOnly
         var config = Configuration()
         config.foreignKeysEnabled = true
+        config.readonly = readOnly
+        if !readOnly {
+            try FileManager.default.createDirectory(
+                at: directoryURL, withIntermediateDirectories: true)
+        }
         pool = try DatabasePool(
             path: directoryURL.appendingPathComponent("vault.sqlite").path,
             configuration: config)
         contentStore = try ContentStore(
             rootURL: directoryURL.appendingPathComponent("objects", isDirectory: true))
-        try Migrations.migrator().migrate(pool)
-        try sweepOrphanedObjects()
+        if !readOnly {
+            try Migrations.migrator().migrate(pool)
+            try sweepOrphanedObjects()
+        }
     }
 
     // MARK: - Import
