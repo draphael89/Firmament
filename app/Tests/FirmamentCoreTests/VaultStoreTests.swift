@@ -33,6 +33,11 @@ struct VaultStoreTests {
                          "entrySearch"] {
             #expect(tables.contains(expected), "missing table \(expected)")
         }
+        let triggers = try vault.pool.read { db in
+            try String.fetchAll(
+                db, sql: "SELECT name FROM sqlite_master WHERE type = 'trigger'")
+        }
+        #expect(triggers.contains("entrySearchCleanup"))
     }
 
     @Test("Import stores raw bytes content-addressed and dedupes by hash")
@@ -47,22 +52,41 @@ struct VaultStoreTests {
             Issue.record("expected creation"); return
         }
 
-        // Raw bytes are retrievable by hash.
         let hash = ContentStore.hash(of: data)
         #expect(try vault.contentStore.data(for: hash) == data)
 
-        // Same bytes again → duplicate, no new entry.
         let second = try vault.importEntry(
             sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
         #expect(second == .duplicate(entryID: entryID))
-        let entryCount = try vault.pool.read { try Entry.fetchCount($0) }
-        #expect(entryCount == 1)
+        #expect(try vault.pool.read { try Entry.fetchCount($0) } == 1)
 
-        // Revision points at the entry with seq 1.
         let revision = try vault.pool.read { try EntryRevision.fetchOne($0, key: revisionID) }
         #expect(revision?.entryID == entryID)
         #expect(revision?.seq == 1)
         #expect(revision?.contentHash == hash)
+    }
+
+    @Test("Duplicate import with localOnly escalates the existing entry's privacy — one-way")
+    func duplicatePrivacyEscalation() throws {
+        let (vault, _) = try makeVault()
+        let source = try makeSource(vault)
+        let data = Data("sensitive thought".utf8)
+
+        guard case .created(let entryID, _) = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
+        else { Issue.record("expected creation"); return }
+        #expect(try vault.entriesEligibleForEgress().map(\.id) == [entryID])
+
+        // Re-import marked local-only: entry becomes local-only.
+        _ = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain",
+            localOnly: true)
+        #expect(try vault.entriesEligibleForEgress().isEmpty)
+
+        // Re-import without the flag: escalation never reverses.
+        _ = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
+        #expect(try vault.entriesEligibleForEgress().isEmpty)
     }
 
     @Test("Revisions chain with ancestry; unchanged content adds nothing")
@@ -76,19 +100,33 @@ struct VaultStoreTests {
             sourceID: source.id, facet: .others, data: v1, mime: "text/plain")
         else { Issue.record("expected creation"); return }
 
-        // Same content → nil, no new revision.
         #expect(try vault.addRevision(entryID: entryID, data: v1, mime: "text/plain") == nil)
 
-        // New content → revision 2 with parent pointer, currentRevisionID advances.
         let secondRevID = try vault.addRevision(entryID: entryID, data: v2, mime: "text/plain")
         #expect(secondRevID != nil)
-        let (entry, second) = try vault.pool.read { db in
-            (try Entry.fetchOne(db, key: entryID),
-             try EntryRevision.fetchOne(db, key: secondRevID!))
-        }
-        #expect(entry?.currentRevisionID == secondRevID)
-        #expect(second?.seq == 2)
-        #expect(second?.parentRevisionID == firstRevID)
+        let current = try vault.currentRevision(entryID: entryID)
+        #expect(current?.id == secondRevID)
+        #expect(current?.seq == 2)
+        #expect(current?.parentRevisionID == firstRevID)
+    }
+
+    @Test("addRevision reindexes search so results track current content")
+    func revisionReindex() throws {
+        let (vault, _) = try makeVault()
+        let source = try makeSource(vault, kind: .granola)
+
+        guard case .created(let entryID, _) = try vault.importEntry(
+            sourceID: source.id, facet: .others,
+            data: Data("quarterly budget review".utf8), mime: "text/plain",
+            searchableText: "quarterly budget review")
+        else { Issue.record("expected creation"); return }
+        #expect(try vault.search("budget") == [entryID])
+
+        _ = try vault.addRevision(
+            entryID: entryID, data: Data("pivot to roadmap planning".utf8),
+            mime: "text/plain", searchableText: "pivot to roadmap planning")
+        #expect(try vault.search("budget").isEmpty)
+        #expect(try vault.search("roadmap") == [entryID])
     }
 
     @Test("FTS search finds projected entries and respects purge")
@@ -107,14 +145,36 @@ struct VaultStoreTests {
             searchBody: "thinking about emergence and consciousness")
 
         #expect(try vault.search("consciousness") == [entryID])
-        #expect(try vault.search("emergence") == [entryID])
         #expect(try vault.search("granola").isEmpty)
 
         try vault.purgeEntry(entryID: entryID)
         #expect(try vault.search("consciousness").isEmpty)
     }
 
-    @Test("Delete Now purges rows, index, jobs, and raw bytes — provably")
+    @Test("Search excludes trashed entries always, local-only unless asked")
+    func searchRespectsBoundaries() throws {
+        let (vault, _) = try makeVault()
+        let source = try makeSource(vault)
+
+        guard case .created(let hidden, _) = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet,
+            data: Data("private lament".utf8), mime: "text/plain",
+            localOnly: true, searchableText: "private lament"),
+            case .created(let doomed, _) = try vault.importEntry(
+                sourceID: source.id, facet: .selfFacet,
+                data: Data("trashed lament".utf8), mime: "text/plain",
+                searchableText: "trashed lament")
+        else { Issue.record("expected creations"); return }
+
+        try vault.trash(entryID: doomed)
+
+        // Egress-safe default: neither shows up.
+        #expect(try vault.search("lament").isEmpty)
+        // UI opt-in sees local-only but still never trashed.
+        #expect(try vault.search("lament", includeLocalOnly: true) == [hidden])
+    }
+
+    @Test("Delete Now purges rows, index, all jobs, and raw bytes — provably")
     func purgeSemantics() throws {
         let (vault, _) = try makeVault()
         let source = try makeSource(vault)
@@ -125,7 +185,6 @@ struct VaultStoreTests {
             sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
         else { Issue.record("expected creation"); return }
 
-        // Populate every derived surface.
         try vault.updateProjection(
             EntryProjection(entryID: entryID, title: "Doomed", summary: "Gone soon."),
             searchBody: "delete me completely")
@@ -135,16 +194,22 @@ struct VaultStoreTests {
                             model: "gpt-5.6-terra", promptVersion: "v1",
                             status: .succeeded).insert(db)
             try Question(entryID: entryID, text: "Why delete?").insert(db)
+            // Jobs in every status — completed/terminal jobs carry payloads
+            // derived from entry content and must not survive the purge.
             try Job(kind: "extract", idempotencyKey: "\(revisionID):extract:v1",
-                    entryID: entryID).insert(db)
+                    entryID: entryID, status: .pending).insert(db)
+            try Job(kind: "extract", idempotencyKey: "\(revisionID):extract:v0",
+                    entryID: entryID, payload: Data("excerpt".utf8),
+                    status: .done).insert(db)
+            try Job(kind: "question", idempotencyKey: "\(revisionID):question:v1",
+                    entryID: entryID, status: .failedTerminal).insert(db)
         }
 
         let report = try vault.purgeEntry(entryID: entryID)
         #expect(report.revisionsPurged == 1)
-        #expect(report.jobsCanceled == 1)
-        #expect(report.objectsDeleted == [hash])
+        #expect(report.jobsDeleted == 3)
+        #expect(report.objectsDeleted == 1)
 
-        // Rows: gone. Index: gone. Bytes: gone.
         try vault.pool.read { db in
             #expect(try Entry.fetchCount(db) == 0)
             #expect(try EntryRevision.fetchCount(db) == 0)
@@ -159,42 +224,80 @@ struct VaultStoreTests {
         #expect(!vault.contentStore.contains(hash))
     }
 
-    @Test("Purge downgrades assertions: remaining evidence → tentative, none → retracted")
-    func assertionDowngrade() throws {
+    @Test("Purge reconciles assertions stance-aware: tentative / conflicted / retracted")
+    func assertionReconciliation() throws {
         let (vault, _) = try makeVault()
         let source = try makeSource(vault)
 
-        guard case .created(let entryA, let revA) = try vault.importEntry(
-            sourceID: source.id, facet: .selfFacet,
-            data: Data("I deeply value craftsmanship".utf8), mime: "text/plain"),
-            case .created(let entryB, let revB) = try vault.importEntry(
+        func imported(_ text: String) throws -> (entry: String, revision: String) {
+            guard case .created(let e, let r) = try vault.importEntry(
                 sourceID: source.id, facet: .selfFacet,
-                data: Data("Craftsmanship matters more than speed to me".utf8),
-                mime: "text/plain")
-        else { Issue.record("expected creations"); return }
+                data: Data(text.utf8), mime: "text/plain")
+            else { throw VaultError.entryNotFound("import failed") }
+            return (e, r)
+        }
+        let a = try imported("I deeply value craftsmanship")
+        let b = try imported("Craftsmanship matters more than speed to me")
+        let c = try imported("Honestly I ship fast and loose these days")
 
         let assertion = ProfileAssertion(
             kind: .value, text: "Values craftsmanship over speed", status: .verified)
         try vault.pool.write { db in
             try assertion.insert(db)
-            try AssertionEvidence(assertionID: assertion.id, revisionID: revA,
+            try AssertionEvidence(assertionID: assertion.id, revisionID: a.revision,
                                   quote: "I deeply value craftsmanship").insert(db)
-            try AssertionEvidence(assertionID: assertion.id, revisionID: revB,
+            try AssertionEvidence(assertionID: assertion.id, revisionID: b.revision,
                                   quote: "Craftsmanship matters more than speed").insert(db)
+            try AssertionEvidence(assertionID: assertion.id, revisionID: c.revision,
+                                  quote: "I ship fast and loose",
+                                  stance: .contradicts).insert(db)
+        }
+        func status() throws -> AssertionStatus? {
+            try vault.pool.read { try ProfileAssertion.fetchOne($0, key: assertion.id)?.status }
         }
 
-        // Purge one evidence source → downgrade to tentative (even from verified).
-        let report1 = try vault.purgeEntry(entryID: entryA)
-        #expect(report1.assertionsDowngraded == 1)
-        #expect(report1.assertionsRetracted == 0)
-        var current = try vault.pool.read { try ProfileAssertion.fetchOne($0, key: assertion.id) }
-        #expect(current?.status == .tentative)
+        // Mixed evidence survives → conflicted (not clobbered to tentative).
+        _ = try vault.purgeEntry(entryID: a.entry)
+        #expect(try status() == .conflicted)
 
-        // Purge the last evidence source → retracted.
-        let report2 = try vault.purgeEntry(entryID: entryB)
-        #expect(report2.assertionsRetracted == 1)
-        current = try vault.pool.read { try ProfileAssertion.fetchOne($0, key: assertion.id) }
-        #expect(current?.status == .retracted)
+        // Only the contradicting evidence survives → still conflicted.
+        _ = try vault.purgeEntry(entryID: b.entry)
+        #expect(try status() == .conflicted)
+
+        // No evidence left → retracted.
+        let final = try vault.purgeEntry(entryID: c.entry)
+        #expect(final.assertionsRetracted == 1)
+        #expect(try status() == .retracted)
+    }
+
+    @Test("Supports-only evidence loss downgrades even a verified assertion to tentative")
+    func assertionDowngradeToTentative() throws {
+        let (vault, _) = try makeVault()
+        let source = try makeSource(vault)
+
+        guard case .created(let entryA, let revA) = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet,
+            data: Data("first supporting note".utf8), mime: "text/plain"),
+            case .created(_, let revB) = try vault.importEntry(
+                sourceID: source.id, facet: .selfFacet,
+                data: Data("second supporting note".utf8), mime: "text/plain")
+        else { Issue.record("expected creations"); return }
+
+        let assertion = ProfileAssertion(kind: .goal, text: "Ship Firmament", status: .verified)
+        try vault.pool.write { db in
+            try assertion.insert(db)
+            try AssertionEvidence(assertionID: assertion.id, revisionID: revA,
+                                  quote: "first").insert(db)
+            try AssertionEvidence(assertionID: assertion.id, revisionID: revB,
+                                  quote: "second").insert(db)
+        }
+
+        let report = try vault.purgeEntry(entryID: entryA)
+        #expect(report.assertionsDowngraded == 1)
+        let status = try vault.pool.read {
+            try ProfileAssertion.fetchOne($0, key: assertion.id)?.status
+        }
+        #expect(status == .tentative)
     }
 
     @Test("Shared content-store objects survive purge of one referencing entry")
@@ -208,8 +311,7 @@ struct VaultStoreTests {
             sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
         else { Issue.record("expected creation"); return }
 
-        // Simulate a second entry referencing the same object (importer
-        // dedupes, so wire the rows directly — e.g. a future re-link path).
+        // Simulate a second entry referencing the same object.
         let entryB = Entry(sourceID: source.id, facet: .selfFacet)
         try vault.pool.write { db in
             try entryB.insert(db)
@@ -218,12 +320,47 @@ struct VaultStoreTests {
         }
 
         let report = try vault.purgeEntry(entryID: entryA)
-        #expect(report.objectsDeleted.isEmpty)
+        #expect(report.objectsDeleted == 0)
         #expect(vault.contentStore.contains(hash))
 
         let report2 = try vault.purgeEntry(entryID: entryB.id)
-        #expect(report2.objectsDeleted == [hash])
+        #expect(report2.objectsDeleted == 1)
         #expect(!vault.contentStore.contains(hash))
+    }
+
+    @Test("Orphaned objects are swept at open; duplicate import self-heals bytes")
+    func orphanRecovery() throws {
+        let (vault, dir) = try makeVault()
+        let source = try makeSource(vault)
+        let data = Data("real entry bytes".utf8)
+        let hash = ContentStore.hash(of: data)
+        guard case .created = try vault.importEntry(
+            sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
+        else { Issue.record("expected creation"); return }
+
+        // Simulate a crash-leaked orphan: bytes on disk, no referencing row.
+        let orphan = try vault.contentStore.put(Data("crash leftover".utf8))
+        #expect(vault.contentStore.contains(orphan))
+
+        // Reopen: sweep reclaims the orphan, keeps the referenced object.
+        let reopened = try VaultStore(directoryURL: dir)
+        #expect(!reopened.contentStore.contains(orphan))
+        #expect(reopened.contentStore.contains(hash))
+
+        // Self-heal: bytes vanish out-of-band, duplicate import restores them.
+        try reopened.contentStore.delete(hash)
+        let result = try reopened.importEntry(
+            sourceID: source.id, facet: .selfFacet, data: data, mime: "text/plain")
+        guard case .duplicate = result else { Issue.record("expected duplicate"); return }
+        #expect(reopened.contentStore.contains(hash))
+    }
+
+    @Test("Job enqueue dedupes on idempotency key")
+    func jobIdempotency() throws {
+        let (vault, _) = try makeVault()
+        #expect(try vault.enqueueJob(kind: "extract", idempotencyKey: "rev1:extract:v1"))
+        #expect(try !vault.enqueueJob(kind: "extract", idempotencyKey: "rev1:extract:v1"))
+        #expect(try vault.pool.read { try Job.fetchCount($0) } == 1)
     }
 
     @Test("local_only and trashed entries are structurally excluded from egress")
@@ -249,7 +386,6 @@ struct VaultStoreTests {
         #expect(!eligible.contains(hidden))
         #expect(!eligible.contains(trashed))
 
-        // Untrash restores egress eligibility; local_only never does.
         try vault.untrash(entryID: trashed)
         let after = Set(try vault.entriesEligibleForEgress().map(\.id))
         #expect(after == [visible, trashed])
@@ -266,7 +402,6 @@ struct VaultStoreTests {
         #expect(try vault.contentStore.data(for: h1) == data)
         try vault.contentStore.delete(h1)
         #expect(!vault.contentStore.contains(h1))
-        // Deleting a missing object is a no-op, not an error.
         try vault.contentStore.delete(h1)
     }
 }

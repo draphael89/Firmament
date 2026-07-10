@@ -23,10 +23,15 @@ enum Migrations {
                 t.column("localOnly", .boolean).notNull().defaults(to: false)
                 t.column("createdAt", .datetime).notNull()
                 t.column("trashedAt", .datetime)
-                t.column("currentRevisionID", .text)
             }
             try db.create(indexOn: "entry", columns: ["sourceID"])
             try db.create(indexOn: "entry", columns: ["facet"])
+            // Serves the egress selector: newest-first over live, shareable
+            // entries without a full scan.
+            try db.execute(sql: """
+                CREATE INDEX entryEgress ON entry(createdAt DESC)
+                WHERE trashedAt IS NULL AND localOnly = 0
+                """)
 
             try db.create(table: "entryRevision") { t in
                 t.primaryKey("id", .text)
@@ -145,14 +150,22 @@ enum Migrations {
                 t.column("endedAt", .datetime)
             }
 
-            // FTS5 index over projected text + raw body. Synced explicitly in
-            // the same transaction as its source rows (no external-content
-            // triggers: deletion must be provable, so sync stays in code).
+            // FTS5 index over projected text + raw body. Inserts are synced
+            // in-transaction by code; deletion is covered structurally by the
+            // trigger below, so every deletion path (including FK cascades)
+            // provably clears the index.
+            try db.create(virtualTable: "entrySearch", using: FTS5()) { t in
+                t.column("entryID").notIndexed()
+                t.column("title")
+                t.column("summary")
+                t.column("body")
+                t.tokenizer = .porter(wrapping: .unicode61())
+            }
             try db.execute(sql: """
-                CREATE VIRTUAL TABLE entrySearch USING fts5(
-                    entryID UNINDEXED, title, summary, body,
-                    tokenize='porter unicode61'
-                )
+                CREATE TRIGGER entrySearchCleanup AFTER DELETE ON entry
+                BEGIN
+                    DELETE FROM entrySearch WHERE entryID = old.id;
+                END
                 """)
         }
 

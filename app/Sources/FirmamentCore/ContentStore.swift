@@ -13,8 +13,15 @@ public struct ContentStore: Sendable {
             at: rootURL, withIntermediateDirectories: true)
     }
 
+    private static let hexDigits = Array("0123456789abcdef".utf8)
+
     public static func hash(of data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        var out = [UInt8](); out.reserveCapacity(64)
+        for byte in SHA256.hash(data: data) {
+            out.append(hexDigits[Int(byte >> 4)])
+            out.append(hexDigits[Int(byte & 0x0f)])
+        }
+        return String(decoding: out, as: UTF8.self)
     }
 
     public func objectURL(for hash: String) -> URL {
@@ -50,5 +57,21 @@ public struct ContentStore: Sendable {
         if FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
         }
+    }
+
+    /// Every object hash currently on disk (for the orphan sweep).
+    public func allObjectHashes() throws -> [String] {
+        let fm = FileManager.default
+        guard let shards = try? fm.contentsOfDirectory(atPath: rootURL.path) else {
+            return []
+        }
+        var hashes: [String] = []
+        for shard in shards where shard.count == 2 {
+            let shardURL = rootURL.appendingPathComponent(shard)
+            for name in (try? fm.contentsOfDirectory(atPath: shardURL.path)) ?? [] {
+                hashes.append(name)
+            }
+        }
+        return hashes
     }
 }

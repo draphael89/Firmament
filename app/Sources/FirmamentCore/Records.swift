@@ -45,7 +45,7 @@ public enum AnalysisStatus: String, Codable, Sendable, DatabaseValueConvertible 
 /// either retryable (bounded backoff) or terminal and *visible*.
 public enum JobStatus: String, Codable, Sendable, DatabaseValueConvertible {
     case pending, running, failedRetryable = "failed_retryable",
-         failedTerminal = "failed_terminal", done, canceled
+         failedTerminal = "failed_terminal", done
 }
 
 public enum AgentClient: String, Codable, Sendable, DatabaseValueConvertible {
@@ -82,14 +82,13 @@ public struct Entry: Codable, Sendable, FetchableRecord, PersistableRecord {
     public var localOnly: Bool
     public var createdAt: Date
     public var trashedAt: Date?
-    public var currentRevisionID: String?
 
     public init(id: String = UUID().uuidString.lowercased(), sourceID: String,
                 facet: Facet, localOnly: Bool = false, createdAt: Date = Date(),
-                trashedAt: Date? = nil, currentRevisionID: String? = nil) {
+                trashedAt: Date? = nil) {
         self.id = id; self.sourceID = sourceID; self.facet = facet
         self.localOnly = localOnly; self.createdAt = createdAt
-        self.trashedAt = trashedAt; self.currentRevisionID = currentRevisionID
+        self.trashedAt = trashedAt
     }
 }
 
