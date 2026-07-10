@@ -238,7 +238,7 @@ public struct ExtractionPipeline: Sendable {
                 "rationale": {"type": ["string", "null"]},
                 "evidence": {"type": "array", "items": {"type": "string"}}
               },
-              "required": ["abstain"],
+              "required": ["abstain", "text", "rationale", "evidence"],
               "additionalProperties": false
             }
           },

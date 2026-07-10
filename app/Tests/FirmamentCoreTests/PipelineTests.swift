@@ -151,6 +151,21 @@ struct JobRunnerTests {
 @Suite("Extraction pipeline")
 struct ExtractionPipelineTests {
 
+    @Test("Structured-output schema requires every declared question field")
+    func strictQuestionSchema() throws {
+        guard let schema = try JSONSerialization.jsonObject(
+            with: ExtractionPipeline.outputSchema) as? [String: Any],
+              let properties = schema["properties"] as? [String: Any],
+              let question = properties["question"] as? [String: Any],
+              let questionProperties = question["properties"] as? [String: Any],
+              let required = question["required"] as? [String] else {
+            Issue.record("Extraction schema is missing the question contract")
+            return
+        }
+
+        #expect(Set(required) == Set(questionProperties.keys))
+    }
+
     @Test("Extraction writes projection, analysis run, question, and search index")
     func happyPath() async throws {
         let vault = try makeVault()
