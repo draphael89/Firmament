@@ -4,7 +4,12 @@ import Darwin
 @testable import FirmamentCore
 
 private func unboundUnixSocketDescriptors() -> Set<Int32> {
-    Set((0..<getdtablesize()).compactMap { descriptor in
+    let descriptorNames = (try? FileManager.default
+        .contentsOfDirectory(atPath: "/dev/fd")) ?? []
+    let openDescriptors = descriptorNames
+        .compactMap(Int32.init)
+        .filter { fcntl($0, F_GETFD) >= 0 }
+    return Set(openDescriptors.compactMap { descriptor in
         var address = sockaddr_un()
         var length = socklen_t(MemoryLayout<sockaddr_un>.size)
         let result = withUnsafeMutablePointer(to: &address) { pointer in
