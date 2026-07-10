@@ -141,6 +141,23 @@ public final class VaultStore: Sendable {
         }
     }
 
+    // MARK: - Sources
+
+    /// Finds or creates the source row for a connector, keyed by kind+name.
+    public func ensureSource(kind: SourceKind, name: String) throws -> String {
+        try pool.write { db in
+            if let existing = try Source
+                .filter(Column("kind") == kind)
+                .filter(Column("name") == name)
+                .fetchOne(db) {
+                return existing.id
+            }
+            let source = Source(kind: kind, name: name)
+            try source.insert(db)
+            return source.id
+        }
+    }
+
     // MARK: - Reading
 
     public func entry(id: String) throws -> Entry? {
