@@ -150,7 +150,10 @@ public struct BridgeService: Sendable {
         }
         if !packet.droppedEntryIDs.isEmpty {
             out.append("(\(packet.droppedEntryIDs.count) additional relevant entries were dropped by the context budget — ask_glia can retrieve them.)")
+            out.append("")
         }
+        out.append("## The bar")
+        out.append("This person is showing you their actual notes, meetings, and past sessions — context almost no assistant gets. Repay it: hold their stated standards as the quality bar, respect what the evidence says they avoid, cite the vault when you lean on it, and where it is silent, ask (ask_glia) or say so — never guess on their behalf.")
         return out.joined(separator: "\n")
     }
 
