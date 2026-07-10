@@ -115,6 +115,12 @@ remaining available through Git history at `f4ffdef`.
   before storage opens; read-only vaults remain concurrent.
 - Socket startup distinguishes absent stale paths from unlink failures and releases
   descriptors on every failed initialization path.
+- The first GitHub package run exposed a test-process lifecycle hang after all
+  JSON-RPC tests completed: peer pipe ends were left open, and connection teardown
+  did not release its write side. The connection now owns write-side closure, its
+  reader closes only after `AsyncBytes` unwinds, and the tests drive peer EOF and
+  close every fixture handle. The full suite also exits under a three-thread
+  cooperative pool matching the constrained runner shape.
 - Successful extraction reprocessing atomically retires the prior open question,
   including on abstention; malformed non-abstaining output preserves the old question.
 - All three executables build, and `swift test --package-path app` passes **58 tests

@@ -35,6 +35,10 @@ actor JSONRPCConnection {
     }
 
     private func startReading(_ readHandle: FileHandle) {
+        guard !closed, readTask == nil else {
+            try? readHandle.close()
+            return
+        }
         readTask = Task {
             do {
                 for try await line in readHandle.bytes.lines {
@@ -43,8 +47,14 @@ actor JSONRPCConnection {
             } catch {
                 // fall through to close
             }
-            await close()
+            try? readHandle.close()
+            await readerDidFinish()
         }
+    }
+
+    private func readerDidFinish() {
+        readTask = nil
+        finishClose()
     }
 
     private func handleLine(_ line: String) {
@@ -100,9 +110,14 @@ actor JSONRPCConnection {
     }
 
     func close() {
+        readTask?.cancel()
+        finishClose()
+    }
+
+    private func finishClose() {
         guard !closed else { return }
         closed = true
-        readTask?.cancel()
+        try? writeHandle.close()
         for (_, continuation) in pending {
             continuation.resume(throwing: ConnectionError.closed)
         }

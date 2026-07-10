@@ -328,7 +328,9 @@ struct ExtractionPipelineTests {
 @Suite("JSON-RPC connection")
 struct JSONRPCConnectionTests {
 
-    private func makePair() -> (JSONRPCConnection, serverIn: FileHandle, serverOut: FileHandle) {
+    private func makePair() -> (
+        JSONRPCConnection, serverIn: FileHandle, serverOut: FileHandle
+    ) {
         let toClient = Pipe()   // server → client
         let toServer = Pipe()   // client → server
         let conn = JSONRPCConnection(
@@ -351,6 +353,10 @@ struct JSONRPCConnectionTests {
     @Test("Requests correlate to responses by id")
     func requestResponse() async throws {
         let (conn, serverIn, serverOut) = makePair()
+        defer {
+            try? serverIn.close()
+            try? serverOut.close()
+        }
 
         async let result = conn.request("initialize", params: .object([:]))
         let received = readLine(serverIn)
@@ -363,12 +369,17 @@ struct JSONRPCConnectionTests {
 
         let value = try await result
         #expect(value["ok"] == .bool(true))
+        try serverOut.close()
         await conn.close()
     }
 
     @Test("Remote errors throw with code and message")
     func remoteError() async throws {
         let (conn, serverIn, serverOut) = makePair()
+        defer {
+            try? serverIn.close()
+            try? serverOut.close()
+        }
 
         let task = Task { try await conn.request("thread/start", params: nil) }
         guard case .number(let id)? = readLine(serverIn)?["id"] else {
@@ -380,22 +391,27 @@ struct JSONRPCConnectionTests {
         await #expect(throws: JSONRPCConnection.ConnectionError.self) {
             _ = try await task.value
         }
+        try serverOut.close()
         await conn.close()
     }
 
     @Test("Server notifications stream in order")
     func notifications() async throws {
-        let (conn, _, serverOut) = makePair()
+        let (conn, serverIn, serverOut) = makePair()
+        defer {
+            try? serverIn.close()
+            try? serverOut.close()
+        }
         let lines = [
             #"{"jsonrpc":"2.0","method":"turn/started","params":{"n":1}}"#,
             #"{"jsonrpc":"2.0","method":"turn/completed","params":{"n":2}}"#,
         ].joined(separator: "\n") + "\n"
         serverOut.write(Data(lines.utf8))
+        try serverOut.close()
 
         var received: [String] = []
         for await notification in conn.notifications {
             received.append(notification.method)
-            if received.count == 2 { break }
         }
         #expect(received == ["turn/started", "turn/completed"])
         await conn.close()

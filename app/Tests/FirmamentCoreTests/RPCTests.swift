@@ -214,7 +214,6 @@ struct RPCTests {
         }
 
         let leaked = unboundUnixSocketDescriptors().subtracting(before)
-        defer { leaked.forEach { Darwin.close($0) } }
         #expect(leaked.isEmpty)
     }
 }

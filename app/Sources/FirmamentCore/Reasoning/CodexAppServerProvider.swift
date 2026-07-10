@@ -252,9 +252,11 @@ public actor CodexAppServerProvider: ReasoningProvider {
     private func teardown() async {
         pumpTask?.cancel()
         pumpTask = nil
+        // Closing a FileHandle.AsyncBytes reader is reader-owned; terminate
+        // the peer first so stdout reaches EOF and the read loop can unwind.
+        if let process, process.isRunning { process.terminate() }
         if let connection { await connection.close() }
         connection = nil
-        if let process, process.isRunning { process.terminate() }
         process = nil
     }
 }
