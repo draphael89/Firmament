@@ -30,6 +30,10 @@ jobs:
           test -x "$BIN_PATH/firmament-mcp"
           test -x "$BIN_PATH/firmament-app"
       - name: Test vault package
+        env:
+          # SwiftPM's --no-parallel does not serialize Swift Testing tests.
+          # These tests deliberately exercise process-global file descriptors.
+          SWT_EXPERIMENTAL_MAXIMUM_PARALLELIZATION_WIDTH: "1"
         run: swift test --package-path app
       - name: Verify dependency lock is stable
         run: git diff --exit-code -- app/Package.resolved

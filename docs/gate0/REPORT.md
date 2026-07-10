@@ -119,8 +119,9 @@ remaining available through Git history at `f4ffdef`.
   JSON-RPC tests completed: peer pipe ends were left open, and connection teardown
   did not release its write side. The connection now owns write-side closure, its
   reader closes only after `AsyncBytes` unwinds, and the tests drive peer EOF and
-  close every fixture handle. The full suite also exits under a three-thread
-  cooperative pool matching the constrained runner shape.
+  close every fixture handle. CI also serializes Swift Testing itself (SwiftPM's
+  default `--no-parallel` does not do so) because these regressions deliberately
+  inspect process-global file descriptors.
 - Successful extraction reprocessing atomically retires the prior open question,
   including on abstention; malformed non-abstaining output preserves the old question.
 - All three executables build, and `swift test --package-path app` passes **58 tests
